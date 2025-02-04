@@ -84,33 +84,46 @@ const registerUser = async ({
   };
 };
 
-// 2. Hàm đăng nhập người dùng
-const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email }).populate("profileId");
-  // Kiểm tra email có tồn tại hay chưa.
-  if (!user) {
-    throw new Error("Email chưa được đăng ký!");
-  }
-  // // Kiểm tra tài khoản có verify chưa.
-  if (user.verifyState === "false") {
-    throw new Error(
-      "Tài khoản chưa được xác minh. Vui lòng xác minh email của bạn.!"
-    );
-  }
-  // Kiểm tra password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    throw new Error("Mật khẩu không hợp lệ!");
-  }
-  const accessToken = await generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user._id);
+// 2. Hàm đăng nhập người dùng (Uppdate)
+const loginService = {
+  async login(email, password) {
+    try {
+      const user = await User.findOne({ email })
+        .select("password verifyState profileId refresh_token")
+        .populate("profileId")
+        .lean(); // Giảm tải Mongoose object
 
-  await User.findByIdAndUpdate(user._id, {
-    refresh_token: refreshToken.token,
-    refresh_token_expiry: refreshToken.expiry,
-  });
+      if (!user) throw new Error("Email chưa được đăng ký!");
 
-  return { access_token: accessToken, refresh_token: refreshToken.token };
+      if (user.verifyState === "false")
+        throw new Error(
+          "Tài khoản chưa được xác minh. Vui lòng xác minh email của bạn.!"
+        );
+
+      // Kiểm tra Mật khẩu
+      const isPasswordValid = bcrypt.compareSync(password, user.password);
+      if (!isPasswordValid) throw new Error("Mật khẩu không hợp lệ!");
+
+      // Tạo AccessToken và RefreshToken
+      const accessToken = await generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user._id);
+
+      // Cập nhật refresh_token nếu thay đổi
+      if (user.refresh_token !== refreshToken.token) {
+        await User.updateOne(
+          { _id: user._id },
+          {
+            refresh_token: refreshToken.token,
+            refresh_token_expiry: refreshToken.expiry,
+          }
+        );
+      }
+
+      return { access_token: accessToken, refresh_token: refreshToken.token };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 // 3. Hàm làm mới token
@@ -299,7 +312,7 @@ const changePasswordUser = async (userId, oldPassword, newPassword) => {
 
 module.exports = {
   registerUser,
-  loginUser,
+  loginService,
   refreshAccessToken,
   forgotPasswordUser,
   verifyOTPUser,

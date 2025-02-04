@@ -3,7 +3,7 @@ const router = express.Router();
 const authenticateToken = require("../middleware/authMiddleware");
 const {
   register,
-  login,
+  loginController,
   forgotPassword,
   verifyOTP,
   resetPassword,
@@ -15,7 +15,7 @@ const {
 // API đăng kí (không cần Token)
 router.post("/register", register);
 // API đăng nhập (không cần Token)
-router.post("/login", login);
+router.post("/login", loginController);
 // API gửi OTP qua email (không cần Token)
 router.post("/forgot-password", forgotPassword);
 // API xác nhận OTP (không cần Token)

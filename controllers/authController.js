@@ -1,6 +1,6 @@
 const {
   registerUser,
-  loginUser,
+  loginService,
   refreshAccessToken,
   forgotPasswordUser,
   verifyOTPUser,
@@ -23,17 +23,14 @@ const register = async (req, res) => {
   }
 };
 
-// 2. Controller đăng nhập
-const login = async (req, res) => {
+// 2. Controller đăng nhập (Update)
+const loginController = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const result = await loginUser({ email, password });
-    res
-      .status(200)
-      .json({ error: 0, message: "Login is successful", ...result });
+    const result = await loginService.login(email, password);
+    res.status(200).json(result);
   } catch (error) {
-    console.error("Login Error:", error);
-    res.status(400).json({ error: 1, message: error.message });
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -152,7 +149,7 @@ const changePassword = async (req, res) => {
 
 module.exports = {
   register,
-  login,
+  loginController,
   refreshToken,
   forgotPassword,
   verifyOTP,

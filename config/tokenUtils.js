@@ -2,34 +2,38 @@ const jwt = require("jsonwebtoken");
 const Role = require("../models/roleModel"); // Import Role model
 const User = require("../models/userModel");
 
-// 1. Tạo AccessToken
+// 1. Tạo AccessToken (Update)
 const generateAccessToken = async (user) => {
   // Lấy giá trị role_code từ User (ObjectId tham chiếu đến Role)
-  const role = await Role.findById(user.role_code); // Truy vấn Role theo role_code (ObjectId)
+  const role = await Role.findById(user.role_code).select("code").lean(); // Truy vấn Role theo role_code (ObjectId)
   console.log("role in generate: ", role);
 
   // Nếu tìm thấy role, lấy giá trị code
   const roleCode = role ? role.code : null;
-  console.log(roleCode);
+  console.log(role);
 
   return jwt.sign(
     { id: user._id, email: user.email, role_code: roleCode },
     process.env.JWT_SECRET || "defaultsecretkey",
-    { expiresIn: "3h" }
+    { algorithm: "HS256", expiresIn: "3h" } // Dùng HS256 để nhanh hơn RS256
   );
 };
 
 // 2. Tạo RefreshToken
 const generateRefreshToken = (userId) => {
-  const token = jwt.sign(
-    { id: userId },
-    process.env.JWT_SECRET || "defaultsecretkey",
-    { expiresIn: "7d" }
-  );
+  const expiry = Date.now() + 604800000; // 7 ngày (7 * 24 * 60 * 60 * 1000)
 
-  const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-
-  return { token, expiry };
+  return {
+    token: jwt.sign(
+      { id: userId },
+      process.env.JWT_SECRET || "defaultsecretkey",
+      {
+        algorithm: "HS256",
+        expiresIn: "7d",
+      }
+    ),
+    expiry,
+  };
 };
 
 // 3. Hàm tạo cả AccessToken và RefreshToken

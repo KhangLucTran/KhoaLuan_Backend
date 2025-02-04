@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true })); // Để parse URL-encoded data
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:3000", // Thêm địa chỉ frontend của bạn vào đây
+    origin: "http://localhost:5173", // Thêm địa chỉ frontend của bạn vào đây
     credentials: true,
   })
 );
@@ -60,4 +60,3 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/invoice", invoiceRoutes);
 app.use("/api/favorite", favoriteRoutes);
 app.use("/api/comment", commentRoutes);
-// app.use("/api/payment", paymentRoutes);
