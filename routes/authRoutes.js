@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
+const passport = require("passport");
 const authenticateToken = require("../middleware/authMiddleware");
 const {
-  register,
+  registerController,
   loginController,
   forgotPassword,
   verifyOTP,
@@ -10,10 +11,12 @@ const {
   verifyAccount,
   sendMailVerifyAccount,
   changePassword,
+  googleCallback,
+  googleLogin,
 } = require("../controllers/authController");
 
 // API đăng kí (không cần Token)
-router.post("/register", register);
+router.post("/register", registerController);
 // API đăng nhập (không cần Token)
 router.post("/login", loginController);
 // API gửi OTP qua email (không cần Token)
@@ -28,5 +31,11 @@ router.get("/verify-account/:email", verifyAccount);
 router.post("/send-mail-verify/:email", sendMailVerifyAccount);
 // API đổi mật khẩu (cần token)
 router.post("/change-password", authenticateToken, changePassword);
+
+// Định tuyến đăng nhập qua Google
+router.get("/google", googleLogin);
+
+// Callback khi đăng nhập thành công qua Google
+router.get("/google/callback", googleCallback);
 
 module.exports = router;

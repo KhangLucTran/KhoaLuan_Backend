@@ -15,12 +15,27 @@ const commentRoutes = require("./routes/commentRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const initializeRoles = require("./config/roleInit");
 const cookieParser = require("cookie-parser");
+const passport = require("./config/passportConfig");
+const session = require("express-session");
 const cors = require("cors");
 
 // App Config
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Để parse URL-encoded data nếu cần
+
+// Cấu hình middleware
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(cookieParser());
 app.use(
@@ -38,13 +53,13 @@ const mongoDBURL =
 mongoose
   .connect(mongoDBURL, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
-    console.log("Connected to MongoDB successfully");
+    console.log("✅ Kết nối MongoDB Cloud thành công!");
     app.listen(5000, () => {
       console.log("Server is running on port 5000");
     });
   })
   .catch((err) => {
-    console.error("Failed to connect to MongoDB:", err);
+    console.error("❌ Lỗi kết nối MongoDB:", err);
   });
 
 // Sử dụng các routes

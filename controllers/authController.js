@@ -1,5 +1,5 @@
 const {
-  registerUser,
+  registerService,
   loginService,
   refreshAccessToken,
   forgotPasswordUser,
@@ -8,12 +8,14 @@ const {
   verifyAccountUser,
   changePasswordUser,
 } = require("../services/authService");
+const passport = require("./../config/passportConfig");
+const { generateTokens } = require("../config/tokenUtils");
 const { sendVerifyEmail } = require("../services/emailService");
 // 1. Controller đăng ký
-const register = async (req, res) => {
+const registerController = async (req, res) => {
   try {
     const { email, password, username } = req.body;
-    const result = await registerUser({ email, password, username });
+    const result = await registerService({ email, password, username });
     res
       .status(201)
       .json({ error: 0, message: "Register is successful!", ...result });
@@ -147,8 +149,48 @@ const changePassword = async (req, res) => {
   }
 };
 
+// 10. Controller đăng nhập bằng Google
+const googleLogin = (req, res, next) => {
+  passport.authenticate("google", { scope: ["profile", "email"] })(
+    req,
+    res,
+    next
+  );
+};
+
+// Callback sau khi người dùng đăng nhập thành công
+const googleCallback = async (req, res, next) => {
+  passport.authenticate("google", async (err, user) => {
+    if (err) {
+      console.error("Google Authentication Error:", err);
+      return res.status(500).json({ message: "Lỗi xác thực", error: err });
+    }
+
+    if (!user) {
+      console.error("Google Authentication Failed: No User Found");
+      return res.status(401).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    try {
+      // Tạo JWT token
+      const tokens = generateTokens(user);
+      console.log(tokens);
+      res.json({
+        message: "Đăng nhập thành công",
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken.token,
+      });
+    } catch (tokenError) {
+      console.error("Token Generation Error:", tokenError);
+      return res
+        .status(500)
+        .json({ message: "Lỗi tạo token", error: tokenError });
+    }
+  })(req, res, next);
+};
+
 module.exports = {
-  register,
+  registerController,
   loginController,
   refreshToken,
   forgotPassword,
@@ -157,4 +199,6 @@ module.exports = {
   verifyAccount,
   sendMailVerifyAccount,
   changePassword,
+  googleCallback,
+  googleLogin,
 };

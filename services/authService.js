@@ -12,65 +12,70 @@ const {
 } = require("../config/tokenUtils");
 const { sendOtpEmail } = require("../services/emailService");
 
-// 1. Hàm đăng ký người dùng
-const registerUser = async ({
+// 1. Hàm đăng ký người dùng (Update)
+const registerService = async ({
   email,
   password,
   username,
   addressData = null,
 }) => {
-  const existingUser = await User.findOne({ email }).lean();
-  if (existingUser) {
-    throw new Error("Email đã tồn tại!");
+  // Kiểm tra xem email đã tồn tại chưa
+  const existingUser = await User.findOne({ email }).lean(); // Có thể kiểm tra thêm chi tiết nếu cần
+  if (existingUser) return { error: "Email đã tồn tại!" };
+
+  // Mã hóa mật khẩu nhanh hơn
+  const hashedPassword = bcrypt.hashSync(password, 10);
+
+  // Truy vấn role một lần
+  const roleR3 = await Role.findOne({ code: "R3" }).select("_id").lean();
+  if (!roleR3)
+    return {
+      error:
+        "Không tìm thấy vai trò mặc định 'Người dùng R3'. Vui lòng khởi tạo vai trò.",
+    };
+
+  // Nếu có địa chỉ, tạo `Address`
+  const addressPromise = addressData
+    ? Address.create({
+        addressLine: addressData.addressLine,
+        province: addressData.province,
+        district: addressData.district,
+      })
+    : null;
+
+  // **Tạo Profile trước để lấy _id**
+  const newProfile = await Profile.create({ username, address: null });
+
+  // **Chạy song song tạo `User`, `Cart`**
+  const [address, newUser] = await Promise.all([
+    addressPromise,
+    User.create({
+      email,
+      password: hashedPassword,
+      profileId: newProfile._id, // Đã có profileId ngay từ đầu
+      role_code: roleR3._id,
+    }),
+  ]);
+
+  // Nếu có `address`, cập nhật vào `Profile` (chỉ khi có addressData)
+  if (address) {
+    await Profile.findByIdAndUpdate(newProfile._id, { address: address._id });
   }
 
-  // Mã hóa mật khẩu
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Nếu có addressData thì tạo địa chỉ, nếu không thì bỏ qua
-  let address = null;
-  if (addressData) {
-    address = await Address.create({
-      addressLine: "",
-      province: "",
-      district: "",
-    });
-  }
-
-  // Tạo hồ sơ Profile mới, với address là null nếu không có addressData
-  const newProfile = await Profile.create({
-    username,
-    address: address ? address._id : null, // Lưu ObjectId nếu có, hoặc null nếu không có,
-  });
-
-  // Lấy vai trò mặc định R3-User
-  const roleR3 = await Role.findOne({ code: "R3" });
-  if (!roleR3) {
-    throw new Error(
-      "Default role 'R3-User' not found. Please initialize roles."
-    );
-  }
-
-  // Tạo người dùng mới
-  const newUser = await User.create({
-    email,
-    password: hashedPassword,
-    profileId: newProfile._id,
-    role_code: roleR3._id,
-  });
-
-  // Tạo giỏ hàng mới
+  // **Tạo Cart ngay sau khi có User**
   await Cart.create({
-    user: newUser._id, // Lưu userId vào Cart
-    items: [], // Giỏ hàng bắt đầu trống
-    totalAmount: 0, // Giỏ hàng bắt đầu với tổng giá trị bằng 0
+    user: newUser._id,
+    items: [],
+    totalAmount: 0,
   });
 
-  // Tạo AccessToken và RefreshToken
-  const accessToken = generateAccessToken(newUser);
-  const refreshToken = generateRefreshToken(newUser._id);
+  // Tạo AccessToken & RefreshToken song song
+  const [accessToken, refreshToken] = await Promise.all([
+    generateAccessToken(newUser),
+    generateRefreshToken(newUser._id),
+  ]);
 
-  // Lưu lại refreshToken vào cơ sở dữ liệu
+  // Lưu refreshToken vào User
   await User.findByIdAndUpdate(newUser._id, {
     refresh_token: refreshToken.token,
     refresh_token_expiry: refreshToken.expiry,
@@ -310,8 +315,46 @@ const changePasswordUser = async (userId, oldPassword, newPassword) => {
   }
 };
 
+// 9. Đăng nhập với Google
+const handleGoogleStrategy = async (
+  accessToken,
+  refreshToken,
+  profile,
+  done
+) => {
+  try {
+    if (!profile.emails || profile.emails.length === 0) {
+      return done(new Error("Không tìm thấy email từ Google"));
+    }
+
+    const email = profile.emails[0].value;
+    const avatar = profile.photos?.[0]?.value || null;
+    const googleId = profile.id;
+
+    // Tìm người dùng bằng email hoặc googleId
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Nếu không tìm thấy người dùng, tạo người dùng mới
+      user = await User.create({
+        email,
+        username: profile.displayName || "Google User",
+        provider: "google",
+        avatar,
+        googleId,
+      });
+    }
+
+    console.log(user);
+    return done(null, user);
+  } catch (error) {
+    console.error("Google Auth Strategy Error:", error);
+    return done(error);
+  }
+};
+
 module.exports = {
-  registerUser,
+  registerService,
   loginService,
   refreshAccessToken,
   forgotPasswordUser,
@@ -319,4 +362,5 @@ module.exports = {
   resetPasswordUser,
   verifyAccountUser,
   changePasswordUser,
+  handleGoogleStrategy,
 };
