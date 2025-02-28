@@ -46,9 +46,23 @@ const removeLineItemFromCartController = async (req, res) => {
   }
 };
 
+const getTotalQuantityCart = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    console.log(userId);
+    // Gpị service để lấy tổng số lượng sản phẩm trong cart
+    const result = await cartService.getTotalQuantity(userId);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error(error.message);
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createCartController,
   getCartController,
   getCartByIdUserController,
+  getTotalQuantityCart,
   removeLineItemFromCartController,
 };

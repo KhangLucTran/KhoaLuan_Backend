@@ -12,76 +12,95 @@ const {
 } = require("../config/tokenUtils");
 const { sendOtpEmail } = require("../services/emailService");
 
-// 1. Hàm đăng ký người dùng
-const registerUser = async ({
+// 1. Hàm đăng ký người dùng (Update)
+const registerService = async ({
   email,
   password,
   username,
+  numberphone,
+  provider,
   addressData = null,
 }) => {
-  const existingUser = await User.findOne({ email }).lean();
-  if (existingUser) {
-    throw new Error("Email đã tồn tại!");
-  }
+  try {
+    // Kiểm tra xem email đã tồn tại chưa
+    const existingUser = await User.findOne({ email }).lean();
+    if (existingUser) throw new Error("Email đã tồn tại!");
 
-  // Mã hóa mật khẩu
-  const hashedPassword = await bcrypt.hash(password, 10);
+    // Mã hóa mật khẩu nhanh chóng
+    const hashedPassword = bcrypt.hashSync(password, 10);
 
-  // Nếu có addressData thì tạo địa chỉ, nếu không thì bỏ qua
-  let address = null;
-  if (addressData) {
-    address = await Address.create({
-      addressLine: "",
-      province: "",
-      district: "",
+    // Truy vấn role mặc định một lần
+    const roleR3 = await Role.findOne({ code: "R3" }).select("_id").lean();
+    if (!roleR3) {
+      console.log("❌ Lỗi: Không thể kết nối đến cơ sở dữ liệu!");
+      throw new Error(
+        "Không tìm thấy vai trò mặc định 'Người dùng R3'. Vui lòng khởi tạo vai trò."
+      );
+    }
+
+    // Nếu có địa chỉ, tạo Address
+    const addressPromise = addressData
+      ? Address.create({
+          addressLine: addressData.addressLine,
+          province: addressData.province,
+          district: addressData.district,
+        })
+      : null;
+
+    // Tạo Profile trước để lấy _id
+    const newProfile = await Profile.create({
+      username,
+      numberphone,
+      address: null,
     });
+
+    // Tạo User và (nếu có) Address song song
+    const [address, newUser] = await Promise.all([
+      addressPromise,
+      User.create({
+        email,
+        password: hashedPassword,
+        profileId: newProfile._id,
+        role_code: roleR3._id,
+        provider: provider || "system",
+      }),
+    ]);
+
+    // Nếu có Address, cập nhật vào Profile
+    if (address) {
+      await Profile.findByIdAndUpdate(newProfile._id, { address: address._id });
+    }
+
+    // Tạo Cart ngay sau khi có User
+    await Cart.create({
+      user: newUser._id,
+      items: [],
+      totalAmount: 0,
+    });
+
+    // Tạo AccessToken & RefreshToken song song
+    const [accessToken, refreshToken] = await Promise.all([
+      generateAccessToken(newUser),
+      generateRefreshToken(newUser._id),
+    ]);
+
+    // Lưu refreshToken vào User
+    await User.findByIdAndUpdate(newUser._id, {
+      refresh_token: refreshToken.token,
+      refresh_token_expiry: refreshToken.expiry,
+    });
+
+    console.log("✅ Thành công: User đã được tạo!");
+    return {
+      userId: newUser._id,
+      profileId: newProfile._id,
+      access_token: accessToken,
+      refresh_token_expiry: refreshToken.expiry,
+      refresh_token: refreshToken.token,
+    };
+  } catch (error) {
+    throw new Error(error.message);
   }
-
-  // Tạo hồ sơ Profile mới, với address là null nếu không có addressData
-  const newProfile = await Profile.create({
-    username,
-    address: address ? address._id : null, // Lưu ObjectId nếu có, hoặc null nếu không có,
-  });
-
-  // Lấy vai trò mặc định R3-User
-  const roleR3 = await Role.findOne({ code: "R3" });
-  if (!roleR3) {
-    throw new Error(
-      "Default role 'R3-User' not found. Please initialize roles."
-    );
-  }
-
-  // Tạo người dùng mới
-  const newUser = await User.create({
-    email,
-    password: hashedPassword,
-    profileId: newProfile._id,
-    role_code: roleR3._id,
-  });
-
-  // Tạo giỏ hàng mới
-  await Cart.create({
-    user: newUser._id, // Lưu userId vào Cart
-    items: [], // Giỏ hàng bắt đầu trống
-    totalAmount: 0, // Giỏ hàng bắt đầu với tổng giá trị bằng 0
-  });
-
-  // Tạo AccessToken và RefreshToken
-  const accessToken = generateAccessToken(newUser);
-  const refreshToken = generateRefreshToken(newUser._id);
-
-  // Lưu lại refreshToken vào cơ sở dữ liệu
-  await User.findByIdAndUpdate(newUser._id, {
-    refresh_token: refreshToken.token,
-    refresh_token_expiry: refreshToken.expiry,
-  });
-
-  return {
-    userId: newUser._id,
-    profileId: newProfile._id,
-    access_token: accessToken,
-    refresh_token: refreshToken.token,
-  };
 };
 
 // 2. Hàm đăng nhập người dùng (Uppdate)
@@ -89,10 +108,11 @@ const loginService = {
   async login(email, password) {
     try {
       const user = await User.findOne({ email })
-        .select("password verifyState profileId refresh_token")
+        .select(
+          "password verifyState role_code profileId refresh_token refresh_token_expiry"
+        )
         .populate("profileId")
         .lean(); // Giảm tải Mongoose object
-
       if (!user) throw new Error("Email chưa được đăng ký!");
 
       if (user.verifyState === "false")
@@ -104,22 +124,42 @@ const loginService = {
       const isPasswordValid = bcrypt.compareSync(password, user.password);
       if (!isPasswordValid) throw new Error("Mật khẩu không hợp lệ!");
 
-      // Tạo AccessToken và RefreshToken
+      // Tạo AccessToken
       const accessToken = await generateAccessToken(user);
-      const refreshToken = generateRefreshToken(user._id);
+      // Lấy ngày hiện tại
+      const dateNow = Date.now();
+      let refreshTokenObj;
 
-      // Cập nhật refresh_token nếu thay đổi
-      if (user.refresh_token !== refreshToken.token) {
+      // Kiểm tra refreshToken lưu trong user
+      // nếu hết hạn thì updateToken mới
+      if (
+        !user.refresh_token ||
+        !user.refresh_token_expiry ||
+        user.refresh_token_expiry < dateNow
+      ) {
+        // Tạo ra refreshToken mới và lưu lại
+        refreshTokenObj = generateRefreshToken(user._id);
         await User.updateOne(
           { _id: user._id },
           {
-            refresh_token: refreshToken.token,
-            refresh_token_expiry: refreshToken.expiry,
+            refresh_token: refreshTokenObj.token,
+            refresh_token_expiry: refreshTokenObj.expiry,
           }
         );
+      } else {
+        // nếu còn hạn thì không update RefreshToken.
+        // Dùng refresh token hiện tại
+        refreshTokenObj = {
+          token: user.refresh_token,
+          expiry: user.refresh_token_expiry,
+        };
       }
 
-      return { access_token: accessToken, refresh_token: refreshToken.token };
+      return {
+        time_refresh: refreshTokenObj.expiry,
+        access_token: accessToken,
+        refresh_token: refreshTokenObj.token,
+      };
     } catch (error) {
       throw new Error(error.message);
     }
@@ -144,7 +184,6 @@ const refreshAccessToken = async (refreshToken) => {
     }
 
     const newAccessToken = generateAccessToken(user);
-
     return { access_token: newAccessToken };
   } catch (error) {
     throw new Error("Failed to refresh token");
@@ -171,9 +210,12 @@ const forgotPasswordUser = async (email) => {
     // Kiểm tra user
     if (user) {
       await sendOtpEmail(email, otp);
-      return { error: 0, message: "OTP has been sent via email successfully." };
+      return { error: 0, message: "OTP đã được gửi qua email thành công." };
     } else {
-      return { error: 1, message: "No user found with this email." };
+      return {
+        error: 1,
+        message: "Không tìm thấy người dùng nào với email này.",
+      };
     }
   } catch (error) {
     console.log(error);
@@ -187,31 +229,31 @@ const verifyOTPUser = async (email, otpInput) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return { error: 1, message: "User not found." };
+      return { error: 1, message: "Tài khoản không tồn tại" };
     }
 
     const { otp, otpExpiry } = user;
 
     // Kiểm tra OTP có khớp và còn hạn không
     if (!otp || !otpExpiry) {
-      return { error: 1, message: "OTP not set or has expired." };
+      return { error: 1, message: "OTP chưa được đặt hoặc đã hết hạn." };
     }
 
     if (otp !== otpInput) {
-      return { error: 1, message: "OTP is invalid." };
+      return { error: 1, message: "OTP không hợp lệ." };
     }
 
     if (new Date().now > new Date(otpExpiry)) {
       console.log("Current Time: ", new Date());
       console.log("OTP Expiry Time: ", new Date(otpExpiry));
-      return { error: 1, message: "OTP has expired." };
+      return { error: 1, message: "OTP đã hết hạn" };
     }
 
     // Nếu OTP hợp lệ
     return { error: 0, message: "OTP hợp lệ" };
   } catch (error) {
     console.log(error);
-    throw new Error("Error when confirming OTP.");
+    throw new Error("Lỗi khi xác nhận OTP   ");
   }
 };
 
@@ -232,11 +274,11 @@ const resetPasswordUser = async (email, newPassword) => {
         data: user,
       };
     } else {
-      return { error: 1, message: "Password reset failed." };
+      return { error: 1, message: "Đặt lại mật khẩu không thành công" };
     }
   } catch (error) {
     console.log(error);
-    throw new Error("Error resetting password.");
+    throw new Error("Lỗi đặt lại mật khẩu.");
   }
 };
 
@@ -310,8 +352,70 @@ const changePasswordUser = async (userId, oldPassword, newPassword) => {
   }
 };
 
+// 9. Đăng nhập với Google
+const handleGoogleStrategy = async (
+  accessToken,
+  refreshToken,
+  profile,
+  done
+) => {
+  try {
+    if (!profile.emails || profile.emails.length === 0) {
+      return done(new Error("Không tìm thấy email từ Google"));
+    }
+
+    const email = profile.emails[0].value;
+    const avatar = profile.photos?.[0]?.value || null;
+    const googleId = profile.id;
+
+    console.log("Google OAuth Login - Email:", email);
+
+    // Tìm người dùng theo email
+    let user = await User.findOne({ email }).populate("profileId").lean();
+
+    if (!user) {
+      console.log("Không tìm thấy user, tạo mới...");
+
+      // Đăng ký user mới
+      const newUserData = await registerService({
+        email,
+        password: "googleAuth", // OAuth không cần password
+        username: profile.displayName || "Google User",
+        provider: "google",
+      });
+
+      if (newUserData.error) {
+        console.error("Lỗi tạo user từ Google OAuth:", newUserData.error);
+        return done(new Error(newUserData.error));
+      }
+
+      // Lấy thông tin user vừa tạo
+      user = await User.findById(newUserData.userId)
+        .populate("profileId")
+        .lean();
+
+      // Cập nhật avatar cho Profile nếu có
+      if (avatar) {
+        await Profile.findByIdAndUpdate(newUserData.profileId, { avatar });
+      }
+
+      console.log("User mới được tạo từ Google OAuth:", user);
+    } else {
+      // Nếu user đã tồn tại, cập nhật avatar nếu chưa có
+      if (avatar && !user.profileId?.avatar) {
+        await Profile.findByIdAndUpdate(user.profileId._id, { avatar });
+      }
+    }
+
+    return done(null, user);
+  } catch (error) {
+    console.error("Google Auth Strategy Error:", error);
+    return done(error);
+  }
+};
+
 module.exports = {
-  registerUser,
+  registerService,
   loginService,
   refreshAccessToken,
   forgotPasswordUser,
@@ -319,4 +423,5 @@ module.exports = {
   resetPasswordUser,
   verifyAccountUser,
   changePasswordUser,
+  handleGoogleStrategy,
 };

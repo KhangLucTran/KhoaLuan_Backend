@@ -10,9 +10,17 @@ router.get(
   authenticateToken,
   cartController.getCartByIdUserController
 );
+
+// Lấy số lượng sản phẩm trong cartId theo userId
+router.get(
+  "/get-total-cart",
+  authenticateToken,
+  cartController.getTotalQuantityCart
+);
 // Lấy giỏ hàng theo ID
 router.get("/:id", authenticateToken, cartController.getCartController);
 
+// Xóa LineItem trong cart theo CartID và LineItem Id
 router.delete(
   "/cart/:cartId/line-item/:lineItemId",
   authenticateToken,

@@ -1,0 +1,118 @@
+extends layout
+
+block content
+  h3.text-center= title
+  div.table-responsive
+    form#createOrder(action='/api/payment/create_payment_url', method='POST', class='payment-form')
+      div.form-group
+        label Sản phẩm
+        div.product-info
+          h4#productTitle 
+          img#productImage(src='', alt='Hình ảnh sản phẩm', class='product-image')
+          p#productDescription
+          p Giá: <span id='productPrice'></span> VND
+      
+      div.form-group
+        label Số tiền
+        // Nếu finalAmount được truyền vào template từ server, gán vào value
+        input.form-control#amount(name='amount', placeholder='Số tiền', required, value=amount)
+      
+      div.form-group
+        label Chọn Phương thức thanh toán:
+        div.payment-options
+          label.radio-inline
+            input(type="radio", name="bankCode", id="defaultPaymentMethod", value="", checked="true")
+            span Cổng thanh toán VNPAYQR
+          label.radio-inline
+            input(type="radio", name="bankCode", id="vnpayqrPaymentMethod", value="VNPAYQR")
+            span Thanh toán qua ứng dụng hỗ trợ VNPAYQR
+          label.radio-inline
+            input(type="radio", name="bankCode", id="vnbankPaymentMethod", value="VNBANK")
+            span Thanh toán qua ATM/Tài khoản ngân hàng nội địa
+          label.radio-inline
+            input(type="radio", name="bankCode", id="intcardPaymentMethod", value="INTCARD")
+            span Thanh toán qua thẻ quốc tế
+      
+      div.form-group
+        label Ngôn ngữ
+        div.language-options
+          label.radio-inline
+            input(type="radio", name="language", id="vnLanguage", value="vn", checked="true")
+            span Tiếng Việt
+          label.radio-inline
+            input(type="radio", name="language", id="enLanguage", value="en")
+            span Tiếng Anh
+      
+      button.btn.btn-primary#btnPopup(type='submit') Thanh toán
+
+  script.
+    document.addEventListener('DOMContentLoaded', function() {
+      // Lấy productId từ URL (ví dụ: nếu URL là /payment/123 thì 123 là productId)
+      const productId = window.location.pathname.split('/').pop();
+      fetch(`/api/product/get-product/${productId}`)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('productTitle').textContent = data.title;
+          document.getElementById('productImage').src = data.images[0];
+          document.getElementById('productDescription').textContent = data.description;
+          document.getElementById('productPrice').textContent = data.price;
+          // Gán giá trị của trường "amount" từ giá sản phẩm
+          document.getElementById('amount').value = data.price;
+        })
+        .catch(error => console.error('Lỗi khi lấy thông tin sản phẩm:', error));
+    });
+
+  style.
+    .payment-form {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #1877F2;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(24, 119, 242, 0.2);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .product-info {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .product-image {
+      width: 100%;
+      max-width: 300px;
+      border-radius: 8px;
+      margin: 0 auto;
+      display: block;
+    }
+    .payment-options, .language-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .payment-options label, .language-options label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      color: #1877F2;
+    }
+    .payment-options input, .language-options input {
+      transform: scale(1.2);
+    }
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: #1877F2;
+      border: none;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 5px;
+      transition: background 0.3s;
+    }
+    .btn-primary:hover {
+      background: #165eab;
+  

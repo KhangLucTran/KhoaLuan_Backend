@@ -1,33 +1,39 @@
 const express = require("express");
 const router = express.Router();
-const {
-  addProductController,
-  deleteProductByIdController,
-  deleteProductByTitleController,
-  getProductByIdController,
-  getAllProducts,
-} = require("../controllers/productController");
+const productController = require("../controllers/productController");
 const uploadCloud = require("../middleware/cloudinary"); // Đảm bảo đã sử dụng uploadCloud từ bước 1
 const authenticateToken = require("../middleware/authMiddleware");
+const authorizeAdmin = require("../middleware/authorizeAdmin");
 
 // Route thêm sản phẩm với nhiều ảnh (chỉ có admin)
 router.post(
   "/add-product",
   authenticateToken,
   uploadCloud.array("images", 10),
-  addProductController
+  productController.addProductController
 );
 // Route xóa sản phẩm theo id (chỉ có admin)
 router.delete(
   "/delete-product/:id",
   authenticateToken,
-  deleteProductByIdController
+  productController.deleteProductByIdController
 );
 // Route xóa sản phẩm theo title
-router.delete("/delete-product-title/:title", deleteProductByTitleController);
+router.delete(
+  "/delete-product-title/:title",
+  productController.deleteProductByTitleController
+);
 // Route lấy sản phẩm theo  (PULIC)
-router.get("/get-product/:id", getProductByIdController);
+router.get("/get-product/:id", productController.getProductByIdController);
 // Route lấy tất cả sản phẩm (PULIC)
-router.get("/getall-product", getAllProducts);
+router.get("/getall-product", productController.getAllProducts);
+
+// Route chỉnh sửa sản phẩm theo id
+router.put(
+  "/update-product/:id",
+  authenticateToken,
+  authorizeAdmin,
+  productController.updateProductById
+);
 
 module.exports = router;

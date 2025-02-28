@@ -4,8 +4,8 @@ const LineItemService = require("../services/lineItemService");
 const createLineItemController = async (req, res) => {
   try {
     // Kiểm tra các trường trong body
-    const { product, quantity, price, size, color } = req.body;
-    if (!product || !quantity || !price || !size || !color) {
+    const { product, quantity, price, size, color, gender } = req.body;
+    if (!product || !quantity || !price || !size || !color || !gender) {
       return res.status(400).json({
         message:
           "Missing required fields: product, quantity, and price are required.",
