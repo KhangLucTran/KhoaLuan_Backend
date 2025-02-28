@@ -113,11 +113,9 @@ router.post("/create_payment_url", async function (req, res, next) {
       paymentMethod: bankCode || "VNPAY",
     });
     await newInvoice.save(); // Lưu vào MongoDB
-    await Promise.all(
-      selectedCartItems.map((item) =>
-        removeLineItemFromCartPayment(cartId, item._id)
-      )
-    );
+    // Xóa nhiều LineItems khỏi giỏ hàng (chỉ cập nhật mảng items, không xóa document trong database)
+    const lineItemIds = selectedCartItems.map((item) => item._id);
+    await removeLineItemsFromCart(cartId, lineItemIds);
     console.log("🎯 Hoàn tất xóa LineItems khỏi giỏ hàng!");
   } catch (error) {
     console.error("❌ Lỗi khi lưu hóa đơn:", error);

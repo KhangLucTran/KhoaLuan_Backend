@@ -80,7 +80,7 @@ const removeLineItemFromCartPayment = async (cartId, lineItemId) => {
   }
 };
 
-// Hàm xóa nhiều LineItem theo danh sách ID
+// Hàm xóa nhiều LineItem theo danh sách ID (đã thanh toán)
 const removeLineItemsFromCart = async (cartId, lineItemIds) => {
   try {
     // Tìm Cart theo cartId
@@ -91,23 +91,11 @@ const removeLineItemsFromCart = async (cartId, lineItemIds) => {
     cart.items = cart.items.filter(
       (item) => !lineItemIds.includes(item.toString())
     );
+
     await cart.save();
 
-    // Xóa từng LineItem khỏi cơ sở dữ liệu
-    const deletedLineItems = [];
-    for (const lineItemId of lineItemIds) {
-      const deletedItem = await LineItem.findByIdAndDelete(lineItemId);
-      if (deletedItem) {
-        deletedLineItems.push(deletedItem);
-      } else {
-        console.warn(`LineItem with ID ${lineItemId} not found`);
-      }
-    }
-
     return {
-      message: "LineItems removed from cart and deleted successfully",
-      deletedCount: deletedLineItems.length,
-      deletedLineItems,
+      message: "LineItems removed from cart successfully",
     };
   } catch (error) {
     console.error(`Error removing LineItems from Cart: ${error.message}`);

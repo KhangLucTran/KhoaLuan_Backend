@@ -121,6 +121,37 @@ class InvoiceController {
       res.status(500).json({ message: error.message });
     }
   }
+
+  // API cập nhật trạng thái của Invoice
+  static async updateInvoiceStatus(req, res) {
+    try {
+      const { id } = req.params; // Invoice ID
+      const { status } = req.body; // Trạng thái mới
+      console.log(id);
+      // Kiểm tra trạng thái mới
+      if (!status) {
+        return res.status(400).json({ message: "Trạng thái mới là bắt buộc" });
+      }
+
+      // Cập nhật trạng thái của Invoice
+      const updatedInvoice = await Invoice.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true, runValidators: true }
+      );
+      console.log("UpdateInvoice:", updatedInvoice);
+      if (!updatedInvoice) {
+        return res.status(404).json({ message: "Invoice không tồn tại" });
+      }
+
+      res.status(200).json({
+        message: "Cập nhật trạng thái hóa đơn thành công",
+        invoice: updatedInvoice,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 }
 
 module.exports = InvoiceController;
