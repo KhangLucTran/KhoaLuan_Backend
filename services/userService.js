@@ -19,7 +19,7 @@ const getUserById = async (userId) => {
     .populate("profileId")
     .populate("role_code");
   if (!user) {
-    throw new Error("User not found");
+    throw new Error("Không tìm thấy user hiện tại!");
   }
   return user;
 };
@@ -27,7 +27,7 @@ const getUserById = async (userId) => {
 const getUserByIdNo_Code = async (userId) => {
   const user = await User.findById(userId).populate("profileId");
   if (!user) {
-    throw new Error("User not found");
+    throw new Error("Không tìm thấy user hiện tại!");
   }
   return user;
 };
@@ -35,15 +35,17 @@ const getUserByIdNo_Code = async (userId) => {
 const updateUser = async (userId, updateData) => {
   // Tìm người dùng theo ID
   const user = await User.findById(userId).populate("profileId");
-
+  console.log("Dữ liệu mới của User:", updateData);
   if (!user) {
-    throw new Error("User not found");
+    throw new Error("Không tìm thấy user hiện tại!");
   }
 
   // Cập nhật thông tin người dùng
   user.email = updateData.email || user.email; // Cập nhật email nếu có
   user.profileId.username = updateData.username || user.profileId.username; // Cập nhật username nếu có
   user.profileId.addresss = updateData.address || user.profileId.addresss; // Cập nhật địa chỉ nếu có
+  user.profileId.gender = updateData.gender || user.profileId.gender;
+  user.profileId.dob = updateData.dob || user.profileId.dob;
   user.profileId.numberphone =
     updateData.numberphone || user.profileId.numberphone; // Cập nhật số điện thoại nếu có
 

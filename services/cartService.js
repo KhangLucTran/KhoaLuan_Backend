@@ -34,7 +34,7 @@ const getCartByUserId = async (userId) => {
     );
   }
 };
-// Hàm xóa LineItem theo id
+// Hàm xóa LineItem theo id (chưa thanh toán)
 const removeLineItemFromCart = async (cartId, lineItemId) => {
   try {
     // Tìm Cart theo cartId
@@ -54,6 +54,25 @@ const removeLineItemFromCart = async (cartId, lineItemId) => {
     return {
       message: "LineItem removed from cart and deleted successfully",
       deletedLineItem,
+    };
+  } catch (error) {
+    console.error(`Error removing LineItem from Cart: ${error.message}`);
+    throw new Error(`Failed to remove LineItem: ${error.message}`);
+  }
+};
+// Hàm xóa LineItem theo id (đã thanh toán)
+const removeLineItemFromCartPayment = async (cartId, lineItemId) => {
+  try {
+    // Tìm Cart theo cartId
+    const cart = await Cart.findById(cartId);
+    if (!cart) throw new Error("Cart not found");
+
+    // Xóa LineItem khỏi danh sách items trong Cart
+    cart.items = cart.items.filter((item) => item.toString() !== lineItemId);
+    await cart.save();
+
+    return {
+      message: "LineItem removed from cart and deleted successfully",
     };
   } catch (error) {
     console.error(`Error removing LineItem from Cart: ${error.message}`);
@@ -96,6 +115,28 @@ const removeLineItemsFromCart = async (cartId, lineItemIds) => {
   }
 };
 
+// Hàm lấy tổng số lượng sản phẩm trong cart
+const getTotalQuantity = async (userId) => {
+  try {
+    // Tìm giỏ hàng theo userId và populate để lấy thông tin đầy đủ của LineItem
+    const cart = await Cart.findOne({ user: userId }).populate("items");
+    if (!cart) throw new Error("Không tìm thấy Giò hàng");
+
+    // Tính tổng số lượng của tất cả LineItem trong giỏ hàng
+    const totalQuantity = cart.items.reduce(
+      (total, item) => total + (item.quantity || 0),
+      0
+    );
+
+    console.log("Tổng số lượng sản phẩm trong giỏ hàng:", totalQuantity);
+
+    return totalQuantity;
+  } catch (error) {
+    console.error(`Error getting total quantity: ${error.message}`);
+    throw new Error(`Failed to get total quantity: ${error.message}`);
+  }
+};
+
 module.exports = {
   createCart,
   getCartById,
@@ -103,4 +144,6 @@ module.exports = {
   removeLineItemFromCart,
   getCartByUserId,
   removeLineItemsFromCart,
+  removeLineItemFromCartPayment,
+  getTotalQuantity,
 };

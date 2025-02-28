@@ -1,41 +1,43 @@
 const express = require("express");
 const router = express.Router();
-const passport = require("passport");
 const authenticateToken = require("../middleware/authMiddleware");
-const {
-  registerController,
-  loginController,
-  forgotPassword,
-  verifyOTP,
-  resetPassword,
-  verifyAccount,
-  sendMailVerifyAccount,
-  changePassword,
-  googleCallback,
-  googleLogin,
-} = require("../controllers/authController");
+const authControler = require("../controllers/authController");
 
-// API đăng kí (không cần Token)
-router.post("/register", registerController);
-// API đăng nhập (không cần Token)
-router.post("/login", loginController);
-// API gửi OTP qua email (không cần Token)
-router.post("/forgot-password", forgotPassword);
-// API xác nhận OTP (không cần Token)
-router.post("/verify-otp", verifyOTP);
-// API đặt lại mật khẩu mới (không cần Token)
-router.post("/reset-password", resetPassword);
-// API xác thực tài khoản (không cần Token)
-router.get("/verify-account/:email", verifyAccount);
-// API gửi mail xác thực tài khoản
-router.post("/send-mail-verify/:email", sendMailVerifyAccount);
-// API đổi mật khẩu (cần token)
-router.post("/change-password", authenticateToken, changePassword);
+// 1. API đăng kí (không cần Token)
+router.post("/register", authControler.registerController);
 
-// Định tuyến đăng nhập qua Google
-router.get("/google", googleLogin);
+// 2. API đăng nhập (không cần Token)
+router.post("/login", authControler.loginController);
 
-// Callback khi đăng nhập thành công qua Google
-router.get("/google/callback", googleCallback);
+// 3. API gửi OTP qua email (không cần Token)
+router.post("/forgot-password", authControler.forgotPassword);
+
+// 4. API xác nhận OTP (không cần Token)
+router.post("/verify-otp", authControler.verifyOTP);
+
+// 5. API đặt lại mật khẩu mới (không cần Token)
+router.post("/reset-password", authControler.resetPassword);
+
+// 6. API xác thực tài khoản (không cần Token)
+router.get("/verify-account/:email", authControler.verifyAccount);
+
+// 7. API gửi mail xác thực tài khoản
+router.post("/send-mail-verify/:email", authControler.sendMailVerifyAccount);
+
+// 8. API xử lí accessToken hết hạn
+router.post("/refresh-token", authControler.refreshTokenCotroller);
+
+// 9. API đổi mật khẩu (cần token)
+router.post(
+  "/change-password",
+  authenticateToken,
+  authControler.changePassword
+);
+
+// 10. Định tuyến đăng nhập qua Google
+router.get("/google", authControler.googleLogin);
+
+// 11. Callback khi đăng nhập thành công qua Google
+router.get("/google/callback", authControler.googleCallback);
 
 module.exports = router;

@@ -1,27 +1,25 @@
-const {
-  registerService,
-  loginService,
-  refreshAccessToken,
-  forgotPasswordUser,
-  verifyOTPUser,
-  resetPasswordUser,
-  verifyAccountUser,
-  changePasswordUser,
-} = require("../services/authService");
+const authService = require("../services/authService");
 const passport = require("./../config/passportConfig");
-const { generateTokens } = require("../config/tokenUtils");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  rotateRefreshToken,
+} = require("../config/tokenUtils");
 const { sendVerifyEmail } = require("../services/emailService");
+
 // 1. Controller đăng ký
 const registerController = async (req, res) => {
   try {
-    const { email, password, username } = req.body;
-    const result = await registerService({ email, password, username });
-    res
-      .status(201)
-      .json({ error: 0, message: "Register is successful!", ...result });
+    const { email, password, username, numberphone } = req.body;
+    const result = await authService.registerService({
+      email,
+      password,
+      username,
+      numberphone,
+    });
+    res.status(200).json(result);
   } catch (error) {
-    console.error("Registration Error:", error);
-    res.status(400).json({ error: 1, message: error.message });
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -29,7 +27,7 @@ const registerController = async (req, res) => {
 const loginController = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const result = await loginService.login(email, password);
+    const result = await authService.loginService.login(email, password);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -40,7 +38,7 @@ const loginController = async (req, res) => {
 const refreshToken = async (req, res) => {
   try {
     const { refresh_token } = req.body;
-    const result = await refreshAccessToken(refresh_token);
+    const result = await authService.refreshAccessToken(refresh_token);
     res
       .status(200)
       .json({ error: 0, message: "Token refreshed successfully", ...result });
@@ -54,7 +52,7 @@ const refreshToken = async (req, res) => {
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const result = await forgotPasswordUser(email);
+    const result = await authService.forgotPasswordUser(email);
     res
       .status(200)
       .json({ error: 0, message: "Password forget successfully", ...result });
@@ -76,7 +74,7 @@ const verifyOTP = async (req, res) => {
         .json({ error: 1, message: "Email and OTP are required." });
     }
 
-    const result = await verifyOTPUser(email, otp);
+    const result = await authService.verifyOTPUser(email, otp);
 
     // Nếu xác nhận thành công
     if (result.error === 0) {
@@ -96,7 +94,7 @@ const verifyOTP = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;
-    const result = await resetPasswordUser(email, newPassword);
+    const result = await authService.resetPasswordUser(email, newPassword);
     return res
       .status(200)
       .json({ error: 0, message: "Password reseted successfully", ...result });
@@ -110,8 +108,8 @@ const resetPassword = async (req, res) => {
 const verifyAccount = async (req, res) => {
   try {
     const { email } = req.params;
-    const result = await verifyAccountUser(email);
-    return res.redirect("http://localhost:3000/login");
+    const result = await authService.verifyAccountUser(email);
+    return res.redirect("http://localhost:5173/levents/login");
   } catch (error) {
     console.eror("Verify Account Error: ", error);
     return res.status(500).json({ error: 1, message: error.message });
@@ -137,7 +135,11 @@ const changePassword = async (req, res) => {
   try {
     const userId = req.user._id;
     const { oldPassword, newPassword } = req.body;
-    const result = await changePasswordUser(userId, oldPassword, newPassword);
+    const result = await authService.changePasswordUser(
+      userId,
+      oldPassword,
+      newPassword
+    );
     return res.status(200).json({
       error: 0,
       message: "Change Password Successfully......",
@@ -158,7 +160,7 @@ const googleLogin = (req, res, next) => {
   );
 };
 
-// Callback sau khi người dùng đăng nhập thành công
+// 11. Callback sau khi người dùng đăng nhập thành công
 const googleCallback = async (req, res, next) => {
   passport.authenticate("google", async (err, user) => {
     if (err) {
@@ -172,14 +174,13 @@ const googleCallback = async (req, res, next) => {
     }
 
     try {
-      // Tạo JWT token
-      const tokens = generateTokens(user);
-      console.log(tokens);
-      res.json({
-        message: "Đăng nhập thành công",
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken.token,
-      });
+      // Tạo JWT token (AccessToken và RefreshToken)
+      const accessToken = await generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user._id);
+
+      // Chuyển hướng đến frontend với token trong URL
+      const redirectUrl = `http://localhost:5173/levents/login?accessToken=${accessToken}&refreshToken=${refreshToken.token}`;
+      res.redirect(redirectUrl);
     } catch (tokenError) {
       console.error("Token Generation Error:", tokenError);
       return res
@@ -189,10 +190,25 @@ const googleCallback = async (req, res, next) => {
   })(req, res, next);
 };
 
+// 12. Xử lí accessToken và refreshToken
+const refreshTokenCotroller = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({ message: "Refresh token là bắt buộc" });
+  }
+
+  try {
+    // Gọi hàm xoay vòng refresh token
+    const tokens = await rotateRefreshToken(refreshToken);
+    return res.status(200).json(tokens);
+  } catch (error) {
+    return res.status(401).json({ message: error.message });
+  }
+};
 module.exports = {
   registerController,
   loginController,
-  refreshToken,
   forgotPassword,
   verifyOTP,
   resetPassword,
@@ -201,4 +217,5 @@ module.exports = {
   changePassword,
   googleCallback,
   googleLogin,
+  refreshTokenCotroller,
 };

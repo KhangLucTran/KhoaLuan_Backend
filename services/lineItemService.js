@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 // Hàm tạo LineItem
 const createLineItem = async (req, res) => {
   try {
-    const { product, quantity, price, size, color } = req.body;
+    const { product, quantity, price, size, color, gender } = req.body;
     const productId = new mongoose.Types.ObjectId(product);
 
     // Tạo một instance mới của LineItem
@@ -16,6 +16,7 @@ const createLineItem = async (req, res) => {
       price,
       size,
       color,
+      gender,
     });
 
     // Lưu LineItem vào cơ sở dữ liệu

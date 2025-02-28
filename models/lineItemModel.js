@@ -26,6 +26,9 @@ const lineItemSchema = new Schema({
   color: {
     type: String,
   },
+  gender: {
+    type: String,
+  },
 });
 
 // Tính tổng giá tự động trước khi lưu
@@ -34,13 +37,17 @@ lineItemSchema.pre("save", function (next) {
   next();
 });
 
-// Nếu quantity hoặc price thay đổi, cần tính lại total
 lineItemSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
-  if (update.quantity || update.price) {
-    update.total =
-      (update.quantity || this.quantity) * (update.price || this.price);
+
+  // Ép kiểu quantity và price về số trước khi tính toán
+  if (update.quantity) update.quantity = Number(update.quantity);
+  if (update.price) update.price = Number(update.price);
+
+  if (!isNaN(update.quantity) && !isNaN(update.price)) {
+    update.total = update.quantity * update.price;
   }
+
   next();
 });
 

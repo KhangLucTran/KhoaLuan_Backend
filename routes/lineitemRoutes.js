@@ -9,7 +9,7 @@ const {
 } = require("../controllers/lineItemController");
 
 // Router thêm lineItem
-router.post("/add/lineitem", authenticateToken, createLineItemController);
+router.post("/add-lineitem", authenticateToken, createLineItemController);
 // Router xem thông tin LineItem
 router.get("/get-lineitem/:id", authenticateToken, getLineItemController);
 // Router xóa LineItem

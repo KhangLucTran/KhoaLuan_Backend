@@ -54,6 +54,13 @@ const productSchema = new Schema(
       required: true,
       enum: ["Shirt", "Pants", "Hat"], // Đảm bảo chỉ có thể là các giá trị này
     },
+
+    // Giới tính
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+      default: "Other",
+    },
   },
   {
     // Tự động thêm createdAt và updatedAt
