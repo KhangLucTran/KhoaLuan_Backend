@@ -3,7 +3,6 @@ const { getCartByUserId, addLineItemToCart } = require("./cartService");
 const mongoose = require("mongoose");
 
 // Hàm tạo LineItem
-// Hàm tạo LineItem
 const createLineItem = async (req, res) => {
   try {
     const { product, quantity, price, size, color, gender } = req.body;
