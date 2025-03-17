@@ -11,11 +11,13 @@ const querystring = require("querystring");
 const crypto = require("crypto");
 require("dotenv").config();
 const Invoice = require("../models/invoiceModel");
+const productService = require("../services/productService");
 const User = require("../models/userModel"); // Import User để xác nhận userId
 const {
   removeLineItemsFromCart,
   removeLineItemFromCartPayment,
 } = require("../services/cartService");
+const { notifyNewOrder } = require("../services/notificationService");
 
 router.get("/", function (req, res, next) {
   res.render("orderlist", { title: "Danh sách đơn hàng" });
@@ -36,6 +38,7 @@ router.get("/refund", function (req, res, next) {
   res.render("refund", { title: "Hoàn tiền giao dịch thanh toán" });
 });
 
+// API tạo hóa đơn
 router.post("/create_payment_url", async function (req, res, next) {
   process.env.TZ = "Asia/Ho_Chi_Minh";
   let date = new Date();
@@ -117,6 +120,9 @@ router.post("/create_payment_url", async function (req, res, next) {
     const lineItemIds = selectedCartItems.map((item) => item._id);
     await removeLineItemsFromCart(cartId, lineItemIds);
     console.log("🎯 Hoàn tất xóa LineItems khỏi giỏ hàng!");
+
+    // 🔥 Gửi thông báo real-time
+    await notifyNewOrder(newInvoice._id, userId);
   } catch (error) {
     console.error("❌ Lỗi khi lưu hóa đơn:", error);
     return res.status(500).json({ message: "Lỗi hệ thống, thử lại sau!" });
@@ -172,12 +178,12 @@ router.get("/vnpay_return", async function (req, res, next) {
     // Nếu giao dịch thành công (00), cập nhật trạng thái "Paid"
     if (transactionStatus === "00") {
       invoice.status = "Paid";
+      await productService.updateStockProduct(invoice.lineItems);
     } else {
       invoice.status = "Cancelled";
     }
 
     await invoice.save(); // Lưu lại hóa đơn
-
     // ✅ Redirect về frontend hiển thị kết quả thanh toán
     return res.redirect(`http://localhost:5173/levents/invoice`);
   } catch (error) {

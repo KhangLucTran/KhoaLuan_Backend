@@ -2,6 +2,7 @@ const Profile = require("../models/profileModel");
 const Address = require("../models/addressModel");
 const User = require("../models/userModel");
 const cloudinary = require("cloudinary").v2;
+const { deleteImageFromCloudinary } = require("../middleware/cloudinary");
 
 // 1. Lấy tất cả hồ sơ
 const getAllProfiles = async () => {
@@ -32,21 +33,22 @@ const uploadImageToCloudinary = async (file) => {
   }
 };
 // 5. Hàm cập nhật ảnh đại diện
-const updateAvatar = async (req, res, file) => {
+const updateAvatar = async (profileId, file) => {
   try {
-    const profile = await Profile.findOne({ _id: req.user.profileId }); // Tìm Profile theo userId
-    if (!profile) {
-      throw new Error("Profile not found");
+    const profile = await Profile.findById(profileId);
+    if (!profile) throw new Error("Profile not found");
+
+    // Xóa ảnh cũ trên Cloudinary nếu có
+    if (profile.avatar) {
+      await deleteImageFromCloudinary(profile.avatar);
     }
 
-    if (file) {
-      const imageUrl = await uploadImageToCloudinary(file); // Upload ảnh lên Cloudinary
-      profile.avatar = imageUrl; // Cập nhật avatar mới
-      await profile.save(); // Lưu hồ sơ đã cập nhật
-      return profile.avatar; // Trả về URL avatar mới
-    }
+    // Upload ảnh mới
+    const imageUrl = await uploadImageToCloudinary(file);
+    profile.avatar = imageUrl;
+    await profile.save();
 
-    throw new Error("No file uploaded");
+    return profile.avatar;
   } catch (error) {
     throw new Error("Error updating avatar: " + error.message);
   }
@@ -118,6 +120,25 @@ const updateUserProfile = async (profileId, body) => {
   }
 };
 
+// 8. Hàm xóa ảnh Avatar
+const deleteAvatar = async (profileId) => {
+  try {
+    const profile = await Profile.findById(profileId);
+    if (!profile) throw new Error("Profile not found");
+
+    if (!profile.avatar) throw new Error("No avatar to delete");
+
+    // Xóa ảnh trên Cloudinary
+    await cloudconfig.deleteImageFromCloudinary(profile.avatar);
+
+    // Xóa avatar trong DB (đặt về ảnh mặc định hoặc null)
+    profile.avatar = null;
+    await profile.save();
+  } catch (error) {
+    throw new Error("Error deleting avatar: " + error.message);
+  }
+};
+
 module.exports = {
   getAllProfiles,
   getProfileById,
@@ -125,4 +146,5 @@ module.exports = {
   updateUserProfile,
   updateAvatar,
   deleteProfile,
+  deleteAvatar,
 };

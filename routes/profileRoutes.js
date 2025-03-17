@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const profileController = require("../controllers/profileController");
 const authenticateToken = require("../middleware/authMiddleware");
-const uploadCloud = require("../middleware/cloudinary");
+const { uploadCloud } = require("../middleware/cloudinary");
 
 // Route lấy tất cả hồ sơ (Cần Token)
 router.get("/", authenticateToken, profileController.getAllProfiles);
@@ -17,7 +17,12 @@ router.put(
   uploadCloud.single("avatar"),
   profileController.updateAvatar
 );
-
+// Route xóa ảnh avatar (Cần Token)
+router.delete(
+  "/delete-avatar",
+  authenticateToken,
+  profileController.deleteAvatar
+);
 // Route cập nhận thông tin profile (Cần Token)
 router.post(
   "/update-profile",

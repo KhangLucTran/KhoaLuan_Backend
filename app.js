@@ -9,31 +9,41 @@ const allRoutes = require("./routes/allRoutes");
 const path = require("path");
 require("dotenv").config();
 const bodyParser = require("body-parser");
+const http = require("http");
+const { Server } = require("socket.io");
 
-// App Config
+// ✅ Khởi tạo ứng dụng Express
 const app = express();
+const server = http.createServer(app);
+
+// ✅ Cấu hình Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: process.env.LOCAL_HOST || "http://localhost:3000", // Mặc định là localhost nếu chưa cấu hình
+    credentials: true,
+  },
+});
+
+// 📌 Lưu `io` vào app để có thể sử dụng ở các file khác
+app.set("io", io);
+
+// ✅ Middleware cơ bản
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// View engine setup
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "jade");
-
-// Middleware
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // ✅ Cấu hình CORS
 app.use(
   cors({
-    origin: process.env.LOCAL_HOST,
+    origin: process.env.LOCAL_HOST || "http://localhost:3000",
     credentials: true,
   })
 );
 
-// ✅ Cấu hình session với MongoDB Store
+// ✅ Cấu hình Session với MongoDB
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "default_secret",
@@ -42,7 +52,7 @@ app.use(
     store: MongoStore.create({
       mongoUrl: process.env.MONGO_URL,
       collectionName: "sessions",
-      ttl: 14 * 24 * 60 * 60, // Lưu session trong 14 ngày
+      ttl: 14 * 24 * 60 * 60, // 14 ngày
     }),
     cookie: { secure: false, httpOnly: true },
   })
@@ -55,13 +65,16 @@ app.use(passport.session());
 // ✅ Kết nối MongoDB
 mongoose
   .connect(process.env.MONGO_URL, {
-    serverSelectionTimeoutMS: 5000,
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 10000,
   })
   .then(() => {
     console.log("✅ Kết nối MongoDB thành công!");
 
-    app.listen(5000, () => {
-      console.log("🚀 Server đang chạy trên cổng 5000");
+    // 🚀 Chạy Server sau khi kết nối thành công
+    server.listen(process.env.PORT || 5000, () => {
+      console.log(`🚀 Server đang chạy trên cổng ${process.env.PORT || 5000}`);
     });
   })
   .catch((err) => {
@@ -69,11 +82,23 @@ mongoose
     process.exit(1);
   });
 
+// ✅ Xử lý kết nối Socket.IO
+io.on("connection", (socket) => {
+  console.log(`🔌 Client đã kết nối: ${socket.id}`);
+
+  socket.on("disconnect", () => {
+    console.log(`❌ Client đã ngắt kết nối: ${socket.id}`);
+  });
+});
+
 // ✅ Ghi log chi tiết khi có request đến API
 app.use((req, res, next) => {
-  console.log(`[${req.method}] ${req.originalUrl}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Sử dụng các routes
+// ✅ Sử dụng routes
 app.use("/api", allRoutes);
+
+// ✅ Xuất module
+module.exports = { app, io };

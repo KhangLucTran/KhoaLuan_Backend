@@ -44,6 +44,7 @@ const registerService = async ({
           addressLine: addressData.addressLine,
           province: addressData.province,
           district: addressData.district,
+          ward: addressData.ward,
         })
       : null;
 

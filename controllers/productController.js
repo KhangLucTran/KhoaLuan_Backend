@@ -93,6 +93,19 @@ const deleteProductByIdController = async (req, res) => {
   }
 };
 
+const getProductByCategoryController = async (req, res) => {
+  try {
+    const category = req.query.category;
+    const result = await productService.getProductByCategory(category);
+    if (!category) {
+      return res.status(400).json({ message: "Category is required" });
+    }
+    res.status(200).json({ message: "Product other", product: result });
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+};
+
 module.exports = {
   addProductController,
   getAllProducts,
@@ -100,4 +113,5 @@ module.exports = {
   updateProductById,
   deleteProductByIdController,
   deleteProductByTitleController,
+  getProductByCategoryController,
 };

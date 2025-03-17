@@ -25,11 +25,13 @@ const removeFavoriteById = async (favoriteId) => {
 const removeFavoriteByUserAndProduct = async (userId, productId) => {
   try {
     // Tìm và xóa mục yêu thích dựa trên userId và productId
+    console.log(userId);
+    console.log(productId);
     const favorite = await FavoriteProduct.findOneAndDelete({
       userId,
       productId,
     });
-
+    console.log(favorite);
     // Trả về kết quả, null nếu không tìm thấy
     return favorite;
   } catch (error) {

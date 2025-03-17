@@ -20,7 +20,6 @@ router.get(
   invoiceController.getInvoiceByUserId
 );
 
-// Lấy tất cả invoices theo userId
 router.get(
   "/get-invoice/:id",
   authenticateToken,

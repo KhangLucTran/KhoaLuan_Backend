@@ -48,6 +48,12 @@ const productSchema = new Schema(
       required: true,
     },
 
+    // Số lượng sản phẩm bán được
+    sold: {
+      type: Number,
+      default: 0,
+    },
+
     // Thể loại sản phẩm (Ví dụ: Quần, Áo, Nón)
     category: {
       type: String,

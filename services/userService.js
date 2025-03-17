@@ -6,7 +6,10 @@ const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../config/tokenUtils");
-
+const {
+  sendNotification,
+  notifyOrderUpdate,
+} = require("../services/notificationService");
 /**
  * Hàm lấy thông tin người dùng hiện đang đăng nhập từ token
  * @param {String} token - Token JWT
@@ -43,7 +46,7 @@ const updateUser = async (userId, updateData) => {
   // Cập nhật thông tin người dùng
   user.email = updateData.email || user.email; // Cập nhật email nếu có
   user.profileId.username = updateData.username || user.profileId.username; // Cập nhật username nếu có
-  user.profileId.addresss = updateData.address || user.profileId.addresss; // Cập nhật địa chỉ nếu có
+  user.profileId.address = updateData.address || user.profileId.address; // Cập nhật địa chỉ nếu có
   user.profileId.gender = updateData.gender || user.profileId.gender;
   user.profileId.dob = updateData.dob || user.profileId.dob;
   user.profileId.numberphone =
@@ -56,6 +59,14 @@ const updateUser = async (userId, updateData) => {
   // Trả về thông tin người dùng đã cập nhật, bỏ các thuộc tính không cần thiết
   const { password, createdAt, updatedAt, ...profileData } =
     user.profileId._doc; // Sử dụng _doc để lấy dữ liệu raw
+
+  // Gửi thông báo người dùng chỉnh sửa dữ liệu thành công
+  await notifyOrderUpdate(
+    null,
+    userId,
+    "✨ Hồ sơ của bạn vừa được nâng cấp!",
+    "user"
+  );
 
   return {
     _id: user._id,

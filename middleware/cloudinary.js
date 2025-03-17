@@ -14,28 +14,30 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "avatars", // Thư mục lưu ảnh trên Cloudinary
-    format: async (req, file) => {
-      // Kiểm tra loại file và trả về định dạng phù hợp
-      const allowedFormats = ["jpg", "jpeg", "png", "gif", "webp"];
-      const fileFormat = file.mimetype.split("/")[1];
-      return allowedFormats.includes(fileFormat) ? fileFormat : "png"; // Mặc định là 'png' nếu không hợp lệ
-    },
-    public_id: (req, file) => file.originalname.split(".")[0], // Tên file (không có đuôi)
+    folder: "avatars",
+    allowedFormats: ["jpg", "jpeg", "png", "gif", "webp"],
+    transformation: [{ width: 500, height: 500, crop: "limit" }],
+    public_id: (req, file) => Date.now().toString(), // Tránh trùng tên
   },
 });
 
-// Cấu hình multer để sử dụng CloudinaryStorage
-const uploadCloud = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn kích thước file: 5MB
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true); // Chấp nhận file ảnh
-    } else {
-      cb(new Error("Chỉ cho phép upload file ảnh!"), false);
-    }
-  },
-});
+// Middleware upload sử dụng `multer`
+const uploadCloud = multer({ storage });
 
-module.exports = uploadCloud;
+const deleteImageFromCloudinary = async (imageUrl) => {
+  try {
+    if (!imageUrl) return;
+
+    const urlParts = imageUrl.split("/");
+    const fileNameWithExtension = urlParts.pop();
+    const folderName = urlParts.pop();
+    const fileName = fileNameWithExtension.split(".")[0];
+
+    const publicId = `${folderName}/${fileName}`;
+    await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    console.error("Error deleting image from Cloudinary:", error.message);
+  }
+};
+
+module.exports = { uploadCloud, deleteImageFromCloudinary };

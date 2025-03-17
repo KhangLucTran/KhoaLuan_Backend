@@ -60,10 +60,19 @@ const updateProfile = async (req, res) => {
 
 const updateAvatar = async (req, res) => {
   try {
-    const file = req.file; // Lấy file từ request (nếu có)
+    const file = req.file; // Lấy file từ request
+    if (!file) {
+      return res.status(400).send({ message: "No file uploaded" });
+    }
 
-    // Gọi service để cập nhật avatar
-    const avatarUrl = await profileService.updateAvatar(req, res, file);
+    const profileId = req.user.profileId; // Lấy profileId từ token
+    console.log(profileId);
+    if (!profileId) {
+      return res.status(400).send({ message: "Profile ID is missing" });
+    }
+
+    // Gọi service cập nhật avatar
+    const avatarUrl = await profileService.updateAvatar(profileId, file);
 
     return res.status(200).send({
       message: "Avatar updated successfully",
@@ -74,6 +83,18 @@ const updateAvatar = async (req, res) => {
     return res
       .status(500)
       .send({ message: "Error updating avatar: " + error.message });
+  }
+};
+// Xóa avatar
+const deleteAvatar = async (req, res) => {
+  try {
+    await profileService.deleteAvatar(req.user.profileId);
+    return res.status(200).send({ message: "Avatar deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .send({ message: "Error deleting avatar: " + error.message });
   }
 };
 
@@ -97,4 +118,5 @@ module.exports = {
   updateProfile,
   deleteProfile,
   updateAvatar,
+  deleteAvatar,
 };

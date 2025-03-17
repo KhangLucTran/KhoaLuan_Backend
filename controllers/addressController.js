@@ -26,8 +26,10 @@ const getAddressById = async (req, res) => {
 // Tạo địa chỉ mới
 const createAddress = async (req, res) => {
   try {
-    const newAddress = await addressService.createAddress(req.body);
-    res.status(201).json(newAddress);
+    const userId = req.user._id;
+    const newAddress = req.body;
+    const result = await addressService.createAddress(newAddress, userId);
+    res.status(201).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -62,10 +64,47 @@ const deleteAddress = async (req, res) => {
   }
 };
 
+// Lấy tất cả địa chỉ theo userId
+const getAllAddressByUserId = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const result = await addressService.getAllAddressByUserId(userId);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Lấy địa chỉ của userId có isDefault ;à true
+const getAllAddressisDefault = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const result = await addressService.getAllAddressisDefault(userId);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Đặt đỉa chỉ thành mặc định
+const setDefaultAddressController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id; // Giả định userId có trong req.user
+    const updatedAddress = await addressService.setDefaultAddress(id, userId);
+    res.status(200).json(updatedAddress);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllAddresses,
   getAddressById,
   createAddress,
   updateAddress,
   deleteAddress,
+  setDefaultAddressController,
+  getAllAddressByUserId,
+  getAllAddressisDefault,
 };

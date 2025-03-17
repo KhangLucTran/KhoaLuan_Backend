@@ -1,6 +1,7 @@
 // services/productService.js
 const cloudinary = require("cloudinary").v2;
 const Product = require("../models/productModel");
+const NotificationService = require("../services/notificationService");
 
 // Hàm upload ảnh lên Cloudinary
 const uploadImageToCloudinary = async (file) => {
@@ -31,6 +32,15 @@ const addProduct = async (productData, files) => {
 
     const newProduct = new Product(productData); // Tạo mới sản phẩm
     await newProduct.save(); // Lưu vào DB
+
+    // ✅ Gửi thông báo sau khi thêm sản phẩm thành công
+    await NotificationService.sendGenericNotification(
+      null, // Không chỉ định user cụ thể
+      `🆕 Levents đã thêm một sản phẩm mới: ${newProduct.title}!`, // Nội dung thông báo
+      "product", // Loại thông báo
+      { productId: newProduct._id } // Dữ liệu bổ sung
+    );
+
     return newProduct; // Trả về sản phẩm vừa thêm
   } catch (error) {
     throw new Error("Error adding product: " + error.message);
@@ -96,6 +106,38 @@ const updateProductById = async (id, productData, file) => {
   }
 };
 
+// Update số lượng sản phẩm khi đã bán được
+const updateStockProduct = async (lineItems) => {
+  try {
+    for (const item of lineItems) {
+      const { productId, quantity } = item;
+
+      // Tìm sản phẩm theo ID
+      const product = await Product.findById(productId);
+      if (!product) {
+        console.log(`Sản phẩm với ID ${productId} không tồn tại.`);
+        continue;
+      }
+
+      // Kiểm tra xem còn đủ hàng không
+      if (product.stock < quantity) {
+        console.log(`Sản phẩm ${product.title} không đủ hàng trong kho.`);
+        continue;
+      }
+
+      // Cập nhật số lượng tồn kho và số lượng đã bán
+      product.stock -= quantity;
+      product.sold += quantity;
+      await product.save();
+      console.log(
+        `Đã cập nhật tồn kho cho sản phẩm: ${product.title}. Số lượng còn lại: ${product.stock}, Đã bán: ${product.sold}`
+      );
+    }
+  } catch (error) {
+    console.error("Lỗi khi cập nhật số lượng sản phẩm tồn kho", error);
+  }
+};
+
 // Xóa sản phẩm theo ID
 const deleteProductById = async (id) => {
   try {
@@ -109,6 +151,19 @@ const deleteProductById = async (id) => {
   }
 };
 
+// Lấy sản phẩm theo danh mục
+const getProductByCategory = async (category) => {
+  try {
+    const products = await Product.find({ category: category });
+    if (!products) {
+      throw new Error("Product not found");
+    }
+    return products;
+  } catch (error) {
+    throw new Error("Error geting product: " + error.message);
+  }
+};
+
 module.exports = {
   addProduct,
   getAllProducts,
@@ -116,4 +171,6 @@ module.exports = {
   updateProductById,
   deleteProductById,
   deleteProductByTitle,
+  updateStockProduct,
+  getProductByCategory,
 };
