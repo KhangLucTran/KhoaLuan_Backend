@@ -64,6 +64,7 @@ const updateUser = async (userId, updateData) => {
   await notifyOrderUpdate(
     null,
     userId,
+    null,
     "✨ Hồ sơ của bạn vừa được nâng cấp!",
     "user"
   );
@@ -80,12 +81,70 @@ const updateUser = async (userId, updateData) => {
   };
 };
 
-// 3. Hàm lấy thông tin tất cả Users
-const getAllUsersByAdmin = async (req, res) => {
-  const users = await User.find().populate("profileId").populate("role_code");
-  return users;
+// 2. Hàm chỉnh sửa thông tin user của Admin
+const updateUserByAdmin = async (userId, updateData) => {
+  // Tìm người dùng theo ID
+  const user = await User.findById(userId).populate("profileId");
+  console.log("Dữ liệu mới của User:", updateData);
+  if (!user) {
+    throw new Error("Không tìm thấy user hiện tại!");
+  }
+
+  // Cập nhật thông tin người dùng
+  user.email = updateData.email || user.email; // Cập nhật email nếu có
+  user.profileId.username =
+    updateData.profileId.username || user.profileId.username; // Cập nhật username nếu có
+  user.profileId.address = updateData.address || user.profileId.address; // Cập nhật địa chỉ nếu có
+  user.profileId.gender = updateData.profileId.gender || user.profileId.gender;
+  user.profileId.dob = updateData.profileId.dob || user.profileId.dob;
+  user.profileId.numberphone =
+    updateData.profileId.numberphone || user.profileId.numberphone; // Cập nhật số điện thoại nếu có
+
+  // Lưu thông tin đã chỉnh sửa
+  await user.profileId.save(); // Lưu thay đổi cho profile
+  await user.save(); // Lưu thay đổi cho user
+
+  // Trả về thông tin người dùng đã cập nhật, bỏ các thuộc tính không cần thiết
+  const { password, createdAt, updatedAt, ...profileData } =
+    user.profileId._doc; // Sử dụng _doc để lấy dữ liệu raw
+
+  // Gửi thông báo người dùng chỉnh sửa dữ liệu thành công
+  await notifyOrderUpdate(
+    null,
+    userId,
+    "✨ Hồ sơ của bạn vừa được nâng cấp bởi Quản trị viên!",
+    "user"
+  );
+
+  return {
+    _id: user._id,
+    email: user.email,
+    provider: user.provider,
+    verifyState: user.verifyState,
+    profileId: profileData, // Chỉ giữ lại thông tin profile đã cập nhật
+    role_code: user.role_code,
+    refresh_token: user.refresh_token,
+    refresh_token_expiry: user.refresh_token_expiry,
+  };
 };
 
+const getAllUsersByAdmin = async () => {
+  try {
+    const users = await User.find()
+      .populate({ path: "profileId" }) // Chỉ lấy trường cần thiết
+      .populate({ path: "role_code" }) // Chỉ lấy roleName & code
+      .lean(); // Chuyển về Object thuần JS giúp truy vấn nhanh hơn
+
+    // Kiểm tra nếu role_code bị null, gán giá trị mặc định
+    return users.map((user) => ({
+      ...user,
+      role_code: user.role_code || { code: "R3", roleName: "User" }, // Role mặc định
+    }));
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy danh sách users:", error);
+    throw new Error("Không thể lấy danh sách users.");
+  }
+};
 // 4. Hàm xóa user theo id
 const deleteUserById = async (userId) => {
   try {
@@ -183,4 +242,5 @@ module.exports = {
   updateUser,
   createUserByAdmin,
   getUserByIdNo_Code,
+  updateUserByAdmin,
 };

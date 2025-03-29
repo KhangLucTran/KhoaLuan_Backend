@@ -113,26 +113,33 @@ const getHybridRecommendations = async (userId) => {
     getPersonalizedRecommnedations(),
   ]);
 
-  // Kết hợp danh sách đề xuất từ cả ba phương pháp
-  const mergedRecommendations = new Map();
+  const uniqueRecommendations = new Map();
 
-  const addToRecommendations = (products, type) => {
+  const addToRecommendations = (products, priority) => {
     products.forEach((product) => {
-      if (!mergedRecommendations.has(product._id)) {
-        mergedRecommendations.set(product._id, { ...product._doc, score: 0 });
+      const productId = product._id.toString(); // Chuyển ID về string để so sánh
+      if (!uniqueRecommendations.has(productId)) {
+        uniqueRecommendations.set(productId, {
+          ...product.toObject(),
+          priority,
+        });
+      } else {
+        // Nếu sản phẩm đã tồn tại, cập nhật mức độ ưu tiên lớn hơn
+        uniqueRecommendations.get(productId).priority = Math.max(
+          uniqueRecommendations.get(productId).priority,
+          priority
+        );
       }
-      mergedRecommendations.get(product._id).score +=
-        type === "collaborative" ? 3 : type === "content" ? 2 : 1;
     });
   };
+  addToRecommendations(personalized, 1); // Mức ưu tiên thấp nhất
+  addToRecommendations(contentBased, 2);
+  addToRecommendations(collaborative, 3); // Mức ưu tiên cao nhất
 
-  addToRecommendations(collaborative, "collaborative");
-  addToRecommendations(contentBased, "content");
-  addToRecommendations(personalized, "personal");
-
-  // Sắp xếp danh sách theo điểm số cao nhất
-  return Array.from(mergedRecommendations.values()).sort(
-    (a, b) => b.score - a.score
+  // Sắp xếp theo priority giảm dần
+  console.log(addToRecommendations.length);
+  return Array.from(uniqueRecommendations.values()).sort(
+    (a, b) => b.priority - a.priority
   );
 };
 // API chính để lấy danh sách gợi ý sản phẩm

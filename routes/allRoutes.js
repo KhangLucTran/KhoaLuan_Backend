@@ -15,6 +15,7 @@ const paymentRoutes = require("./paymentRoutes");
 const recommandRoutes = require("./recommandRoutes");
 const notificationRoutes = require("./notificationRoutes");
 const searchHistoryRoutes = require("./searchHistoryRoutes");
+const messageRoutes = require("./messageRoutes");
 const router = express.Router();
 
 // Định nghĩa tất cả các route
@@ -33,5 +34,6 @@ router.use("/payment", paymentRoutes);
 router.use("/notification", notificationRoutes);
 router.use("/recommendations", recommandRoutes);
 router.use("/search", searchHistoryRoutes);
+router.use("/chat", messageRoutes);
 
 module.exports = router;

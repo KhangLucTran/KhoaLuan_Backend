@@ -82,8 +82,10 @@ const updateProductById = async (req, res) => {
 
 const deleteProductByIdController = async (req, res) => {
   try {
+    const userId = req.user._id;
     const deletedProduct = await productService.deleteProductById(
-      req.params.id
+      req.params.id,
+      userId
     );
     res
       .status(200)

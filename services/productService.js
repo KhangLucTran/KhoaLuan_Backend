@@ -3,42 +3,39 @@ const cloudinary = require("cloudinary").v2;
 const Product = require("../models/productModel");
 const NotificationService = require("../services/notificationService");
 
-// Hàm upload ảnh lên Cloudinary
 const uploadImageToCloudinary = async (file) => {
   try {
     const result = await cloudinary.uploader.upload(file.path, {
-      folder: "products", // Lưu ảnh trong thư mục 'produucts'
-      use_filename: true, // Sử dụng tên file gốc
-      unique_filename: false, // Không thêm chuỗi ngẫu nhiên vào tên file
+      folder: "products",
+      use_filename: true, // Dùng tên file gốc
+      unique_filename: false, // Không thêm chuỗi ngẫu nhiên
     });
-    return result.secure_url; // Trả về URL của ảnh
+
+    return {
+      url: result.secure_url, // URL ảnh
+      publicId: result.public_id, // public_id chính xác
+    };
   } catch (error) {
     throw new Error("Lỗi khi upload ảnh lên Cloudinary: " + error.message);
   }
 };
-
-// Thêm sản phẩm mới với nhiều ảnh
 const addProduct = async (productData, files) => {
   try {
     if (files && files.length > 0) {
-      // Lấy danh sách URL ảnh từ Cloudinary
-      const imageUrls = [];
-      for (const file of files) {
-        const imageUrl = await uploadImageToCloudinary(file); // Upload ảnh lên Cloudinary
-        imageUrls.push(imageUrl); // Thêm URL ảnh vào mảng
-      }
-      productData.images = imageUrls; // Gán mảng ảnh cho sản phẩm
+      // ✅ Upload ảnh song song để tối ưu tốc độ
+      const imageUrls = await Promise.all(files.map(uploadImageToCloudinary));
+      productData.images = imageUrls; // Lưu danh sách ảnh (URL + publicId)
     }
 
     const newProduct = new Product(productData); // Tạo mới sản phẩm
     await newProduct.save(); // Lưu vào DB
 
-    // ✅ Gửi thông báo sau khi thêm sản phẩm thành công
-    await NotificationService.sendGenericNotification(
-      null, // Không chỉ định user cụ thể
-      `🆕 Levents đã thêm một sản phẩm mới: ${newProduct.title}!`, // Nội dung thông báo
-      "product", // Loại thông báo
-      { productId: newProduct._id } // Dữ liệu bổ sung
+    // ✅ Gửi thông báo khi sản phẩm mới được thêm
+    await NotificationService.notifyNewProduct(
+      {
+        productId: newProduct._id,
+      },
+      `🆕 Levents đã thêm một sản phẩm mới: ${newProduct.title}!`
     );
 
     return newProduct; // Trả về sản phẩm vừa thêm
@@ -71,15 +68,41 @@ const deleteProductByTitle = async (title) => {
     throw new Error(error.message);
   }
 };
-
-// Lấy sản phẩm theo ID
 const getProductById = async (id) => {
   try {
     const product = await Product.findById(id);
     if (!product) {
       throw new Error("Product not found");
     }
-    return product;
+
+    const imageDetails = await Promise.all(
+      product.images.map(async (imageUrl) => {
+        try {
+          // Lấy đúng public_id từ URL
+          const regex = /\/v\d+\/([^/]+)\/([^/.]+)/;
+          const match = imageUrl.match(regex);
+          if (!match) throw new Error("Invalid Cloudinary URL");
+
+          const publicId = `${match[1]}/${match[2]}`;
+
+          // Gọi Cloudinary API để lấy thông tin ảnh
+          const imageInfo = await cloudinary.api.resource(publicId);
+
+          return {
+            url: imageUrl,
+            fileName: imageInfo.public_id.split("/").pop(),
+            format: imageInfo.format,
+            size: (imageInfo.bytes / 1024).toFixed(2) + " KB",
+            dimensions: `${imageInfo.width}x${imageInfo.height} px`,
+          };
+        } catch (error) {
+          console.error("Error fetching image details from Cloudinary:", error);
+          return null;
+        }
+      })
+    );
+
+    return { ...product.toObject(), imageDetails };
   } catch (error) {
     throw new Error("Error fetching product by ID: " + error.message);
   }
@@ -139,12 +162,20 @@ const updateStockProduct = async (lineItems) => {
 };
 
 // Xóa sản phẩm theo ID
-const deleteProductById = async (id) => {
+const deleteProductById = async (id, userId) => {
   try {
     const product = await Product.findByIdAndDelete(id);
     if (!product) {
       throw new Error("Product not found");
     }
+    // Gửi thông báo người dùng chỉnh sửa dữ liệu thành công
+    await NotificationService.notifyOrderUpdate(
+      null,
+      userId,
+      product._id,
+      "✨ Bạn (Quản trị viên) vừa xóa sản phẩm thành công!",
+      "product"
+    );
     return product;
   } catch (error) {
     throw new Error("Error deleting product: " + error.message);
