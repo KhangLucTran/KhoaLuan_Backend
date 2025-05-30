@@ -27,6 +27,13 @@ router.get(
   invoiceController.getInvoiceById
 );
 
+// Update trạng thái của invoice
+router.put(
+  "/update-invoice-status/:id",
+  authenticateToken,
+  invoiceController.updateInvoiceStatus
+);
+
 // Lấy tất cả invoices
 router.get("/", authenticateToken, invoiceController.getAllInvoices);
 

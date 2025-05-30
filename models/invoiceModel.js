@@ -2,11 +2,6 @@ const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const invoiceSchema = new Schema({
-  cart: {
-    type: Schema.Types.ObjectId,
-    ref: "Cart",
-    required: true,
-  },
   user: {
     type: Schema.Types.ObjectId,
     ref: "User",
@@ -24,18 +19,30 @@ const invoiceSchema = new Schema({
   totalAmount: {
     type: Number,
   },
+  // 🔥 Lưu chi tiết LineItem
   lineItems: [
     {
-      type: Schema.Types.ObjectId,
-      ref: "LineItem",
+      productId: {
+        type: Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+      },
+      productName: String, // Lưu tên sản phẩm
+      quantity: { type: Number, required: true },
+      price: { type: Number, required: true },
+      total: { type: Number, required: true },
+      size: String,
+      color: String,
+      gender: String,
     },
   ],
-  productIds: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Product",
-    },
-  ],
+  paymentMethod: String,
+  // 🔥 Lưu thông tin giao dịch từ VNPAY
+  vnp_TxnRef: String, // Mã đơn hàng
+  vnp_TransactionNo: String, // Mã giao dịch
+  vnp_BankCode: String, // Ngân hàng thanh toán
+  vnp_PayDate: String, // Ngày thanh toán
+  vnp_TransactionStatus: String, // Trạng thái giao dịch
 });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

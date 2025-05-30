@@ -6,20 +6,17 @@ const User = require("../models/userModel");
 const generateAccessToken = async (user) => {
   // Lấy giá trị role_code từ User (ObjectId tham chiếu đến Role)
   const role = await Role.findById(user.role_code).select("code").lean(); // Truy vấn Role theo role_code (ObjectId)
-  console.log("role in generate: ", role);
 
   // Nếu tìm thấy role, lấy giá trị code
   const roleCode = role ? role.code : null;
-  console.log(role);
-
   return jwt.sign(
     { id: user._id, email: user.email, role_code: roleCode },
     process.env.JWT_SECRET || "defaultsecretkey",
-    { algorithm: "HS256", expiresIn: "3h" } // Dùng HS256 để nhanh hơn RS256
+    { algorithm: "HS256", expiresIn: process.env.ACCESS_TOKEN_TIME }
   );
 };
 
-// 2. Tạo RefreshToken
+// 2. Tạo RefreshToken (Update)
 const generateRefreshToken = (userId) => {
   const expiry = Date.now() + 604800000; // 7 ngày (7 * 24 * 60 * 60 * 1000)
 
@@ -29,7 +26,7 @@ const generateRefreshToken = (userId) => {
       process.env.JWT_SECRET || "defaultsecretkey",
       {
         algorithm: "HS256",
-        expiresIn: "7d",
+        expiresIn: process.env.REFRESH_TOKEN_TIME,
       }
     ),
     expiry,
@@ -40,6 +37,8 @@ const generateRefreshToken = (userId) => {
 const generateTokens = (user) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user._id);
+
+  console.log("AccessToken:" + accessToken);
 
   return {
     accessToken,
@@ -67,7 +66,7 @@ const rotateRefreshToken = async (oldrefreshToken) => {
     // Kiểm tra thời gian hết hạn của RefreshToken
     if (user.refresh_token_expiry > now) {
       // Nếu refresh token còn hạn, tạo mới accessToken nhưng giữ nguyên refreshToken
-      const accessToken = generateAccessToken(user);
+      const accessToken = await generateAccessToken(user);
       return {
         accessToken,
         refreshToken: {
