@@ -2,14 +2,11 @@ const User = require("../models/userModel");
 const Profile = require("../models/profileModel");
 const Address = require("..//models/addressModel");
 const Role = require("../models/roleModel");
+const NotificationService = require("./notificationService");
 const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../config/tokenUtils");
-const {
-  sendNotification,
-  notifyOrderUpdate,
-} = require("../services/notificationService");
 /**
  * Hàm lấy thông tin người dùng hiện đang đăng nhập từ token
  * @param {String} token - Token JWT
@@ -61,14 +58,14 @@ const updateUser = async (userId, updateData) => {
     user.profileId._doc; // Sử dụng _doc để lấy dữ liệu raw
 
   // Gửi thông báo người dùng chỉnh sửa dữ liệu thành công
-  await notifyOrderUpdate(
-    null,
-    userId,
-    null,
-    "✨ Hồ sơ của bạn vừa được nâng cấp!",
-    "user"
-  );
-
+  await NotificationService.createNotification({
+    user: userId,
+    title: "Hồ sơ của bạn đã được cập nhật",
+    message: "✨ Hồ sơ của bạn đã được cập nhật thành công!",
+    isGlobal: false,
+    type: "user",
+    profileId: user.profileId._id,
+  });
   return {
     _id: user._id,
     email: user.email,
@@ -109,12 +106,14 @@ const updateUserByAdmin = async (userId, updateData) => {
     user.profileId._doc; // Sử dụng _doc để lấy dữ liệu raw
 
   // Gửi thông báo người dùng chỉnh sửa dữ liệu thành công
-  await notifyOrderUpdate(
-    null,
-    userId,
-    "✨ Hồ sơ của bạn vừa được nâng cấp bởi Quản trị viên!",
-    "user"
-  );
+  await NotificationService.createNotification({
+    user: userId,
+    title: "Hồ sơ của bạn đã được Quản trị viên cập nhật",
+    message: "✨ Hồ sơ của bạn đã được cập nhật thành công!",
+    isGlobal: false,
+    type: "user",
+    profileId: user.profileId._id,
+  });
 
   return {
     _id: user._id,

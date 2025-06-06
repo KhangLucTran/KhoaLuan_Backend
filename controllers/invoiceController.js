@@ -3,6 +3,24 @@ const InvoiceService = require("../services/invoiceService");
 const CartService = require("../services/cartService");
 const mongoose = require("mongoose");
 const LineItem = require("../models/lineItemModel");
+const socketHandler = require("../config/socketHandler");
+const { createNotification } = require("../services/notificationService");
+
+// Change Status -> Text
+const getStatus = (status) => {
+  switch (status) {
+    case "Pending":
+      return "Đơn Hàng Đã Đặt";
+    case "Paid":
+      return "Đã Xác Nhận Thông Tin Thanh Toán";
+    case "Shipped":
+      return "Đã Giao Cho ĐVVC";
+    case "Completed":
+      return "Đơn Hàng Đã Hoàn Thành";
+    default:
+      return "Đã hủy";
+  }
+};
 
 class InvoiceController {
   // API tạo Invoice (không có VNPAY)
@@ -97,6 +115,24 @@ class InvoiceController {
       res.status(500).json({ message: error.message });
     }
   }
+  // API lấy Invoice theo userID từ Admin
+  static async getInvoiceByUserIdByAdmin(req, res) {
+    try {
+      const userId = req.params.userId; // Lấy userId từ params
+      if (!userId)
+        return res.status(400).json({ message: "UserID là bắt buộc" });
+      console.log("userId trong controller:", userId);
+      const invoice = await InvoiceService.getInvoiceByUserId(userId);
+
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      res.status(200).json({ invoice });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
   // API lấy Invoice theo InvoiceId
   static async getInvoiceById(req, res) {
     try {
@@ -121,6 +157,17 @@ class InvoiceController {
       res.status(500).json({ message: error.message });
     }
   }
+  // API lấy update invoice
+  static async updateHasRatedInvoices(req, res) {
+    try {
+      const { id } = req.params; // Lấy invoiceId từ params
+      const { productId } = req.body; // Lấy productId từ body
+      const invoices = await InvoiceService.updateHasRated(id, productId);
+      res.status(200).json({ invoices });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 
   // API cập nhật trạng thái của Invoice
   static async updateInvoiceStatus(req, res) {
@@ -136,6 +183,25 @@ class InvoiceController {
         id,
         status
       );
+      // Emit notification tới người dùng
+      if (updatedInvoice?.user) {
+        createNotification({
+          user: updatedInvoice.user._id,
+          title: "Cập nhật trạng thái đơn hàng",
+          isGlobal: false,
+          message: `Đơn hàng #${
+            updatedInvoice._id
+          } đã được cập nhật sang trạng thái: ${getStatus(status)}`,
+          invoiceId: updatedInvoice._id,
+          type: "order",
+        });
+
+        // Gửi socket đến user
+        socketHandler.emitInvoiceStatus(
+          updatedInvoice.user._id,
+          updatedInvoice
+        );
+      }
       res.status(200).json({
         message: "Cập nhật trạng thái hóa đơn thành công",
         invoice: updatedInvoice,

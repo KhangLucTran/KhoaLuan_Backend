@@ -28,16 +28,40 @@ const messageSchema = new Schema(
   }
 );
 
-// Middleware kiểm tra receiver có phải Admin không
+// Middleware kiểm tra logic tin nhắn giữa người gửi và người nhận trước khi lưu vào DB
 messageSchema.pre("save", async function (next) {
   try {
-    const adminUser = await mongoose
+    const sender = await mongoose
+      .model("User")
+      .findById(this.sender)
+      .populate("role_code");
+    const receiver = await mongoose
       .model("User")
       .findById(this.receiver)
       .populate("role_code");
+    if (!sender || !receiver || !sender.role_code || !receiver.role_code) {
+      return next(
+        new Error(
+          "Nguời gửi hoặc người nhận không tồn tại hoặc không có quyền hạn."
+        )
+      );
+    }
 
-    if (!adminUser || adminUser.role_code.code !== "R1") {
-      return next(new Error("Receiver must be an Admin (R1)."));
+    // Chỉ cho phép:
+    // User gửi đến Admin
+    // Admin gửi cho User
+    const senderRole = sender.role_code.code;
+    const receiverRole = receiver.role_code.code;
+
+    const isUserToAdmin = senderRole !== "R1" && receiverRole === "R1";
+    const isAdminToUser = senderRole === "R1" && receiverRole !== "R1";
+
+    if (!isUserToAdmin && !isAdminToUser) {
+      return next(
+        new Error(
+          "Người gửi và người nhận không hợp lệ. Chỉ cho phép User gửi đến Admin hoặc Admin gửi cho User."
+        )
+      );
     }
 
     next();

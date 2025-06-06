@@ -114,17 +114,23 @@ const loginService = {
         )
         .populate("profileId")
         .lean(); // Giảm tải Mongoose object
-      if (!user) throw new Error("Email chưa được đăng ký!");
+      if (!user) {
+        return { error: 1, message: "Email chưa được đăng ký!" };
+      }
 
-      if (user.verifyState === "false")
-        throw new Error(
-          "Tài khoản chưa được xác minh. Vui lòng xác minh email của bạn.!"
-        );
+      if (user.verifyState === "false") {
+        return {
+          error: 1,
+          message:
+            "Tài khoản chưa được xác minh. Vui lòng xác minh email của bạn!",
+        };
+      }
 
       // Kiểm tra Mật khẩu
       const isPasswordValid = bcrypt.compareSync(password, user.password);
-      if (!isPasswordValid) throw new Error("Mật khẩu không hợp lệ!");
-
+      if (!isPasswordValid) {
+        return { error: 1, message: "Mật khẩu không hợp lệ!" };
+      }
       // Tạo AccessToken
       const accessToken = await generateAccessToken(user);
       // Lấy ngày hiện tại
@@ -157,6 +163,8 @@ const loginService = {
       }
 
       return {
+        error: 0,
+        message: "Đăng nhập thành công!",
         time_refresh: refreshTokenObj.expiry,
         access_token: accessToken,
         refresh_token: refreshTokenObj.token,
@@ -220,7 +228,7 @@ const forgotPasswordUser = async (email) => {
     }
   } catch (error) {
     console.log(error);
-    throw new Error("Failed to send OTP");
+    throw new Error("Gửi mã OTP không thành công.");
   }
 };
 

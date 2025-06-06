@@ -39,9 +39,8 @@ router.get(
 router.put(
   "/update-product/:id",
   authenticateToken,
-  authorizeAdmin,
+  uploadCloud.array("newImages", 5),
   productController.updateProductById
 );
-7;
 
 module.exports = router;

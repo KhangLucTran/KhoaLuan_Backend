@@ -2,23 +2,30 @@ const User = require("../models/userModel");
 const Product = require("../models/productModel");
 const searchHistoryService = require("./searchHistoryService");
 
-// Hàm ánh xạ trending keywords thành các loại sản phẩm của cửa hàng
+// Keywords
+const keywordsToCategory = {
+  "T-Shirt": ["áo", "áo thun"],
+  Shirt: ["áo", "áo sơ mi"],
+  Pants: ["quần", "quần jean", "quần short"],
+  Hat: ["nón", "mũ"],
+  Short: ["'quần", "quần ngắn", "quần short"],
+  Accessories: ["phụ kiện", "balo", "túi"],
+  Jacket: ["áo khoác"],
+};
+
+// Mapping từ khóa trending thành các category
+// Chuyển đổi từ khóa thành các category tương ứng
 const mapTrendingToCategory = (keywords) => {
   const mappedCategories = new Set();
 
   keywords.forEach((keyword) => {
     const normalized = keyword.trim().toLowerCase();
-    // Nếu chứa từ "áo", "áo thun", "áo sơ mi", v.v.
-    if (normalized.includes("áo")) {
-      mappedCategories.add("Shirt");
-    }
-    // Nếu chứa từ "quần"
-    if (normalized.includes("quần")) {
-      mappedCategories.add("Pants");
-    }
-    // Nếu chứa từ "nón"
-    if (normalized.includes("nón")) {
-      mappedCategories.add("Hat");
+    for (const [category, relatedKeywords] of Object.entries(
+      keywordsToCategory
+    )) {
+      if (relatedKeywords.some((word) => normalized.includes(word))) {
+        mappedCategories.add(category);
+      }
     }
   });
 
@@ -29,6 +36,7 @@ const mapTrendingToCategory = (keywords) => {
 const getRecentSearches = async (userId) => {
   return await searchHistoryService.getRecentSearches(userId);
 };
+(" ");
 
 // 🔹 Collaborative Filtering: Dựa trên người dùng có hành vi tương tự
 const getCollaborativeRecommendations = async (userId) => {
@@ -63,7 +71,7 @@ const getCollaborativeRecommendations = async (userId) => {
   // Tìm sản phẩm liên quan đến các từ khóa này
   return await Product.find({
     category: { $in: Array.from(mappedCategories) },
-  }).limit(10);
+  }).limit(20);
 };
 
 //🔹 Content-based Filtering: Gợi ý dựa trên nội dung sản phẩm đã tìm kiếm
@@ -83,11 +91,11 @@ const getContentBaseRecommendations = async (userId) => {
   }));
 
   // Truy vấn các sản phẩm có title chứa ít nhất một trong các từ khóa
-  return await Product.find({ $or: queryConditions }).limit(10);
+  return await Product.find({ $or: queryConditions }).limit(20);
 };
 
 // 🔹 Personalized Recommendations: Gợi ý cho user mới chưa có lịch sử tìm kiếm
-const getPersonalizedRecommnedations = async () => {
+const getPersonalizedRecommendations = async () => {
   // Lấy từ khóa trending từ searchHistory
   const trendingProducts = await searchHistoryService.getTrendingKeywords();
   console.log("Trending Product in service:", trendingProducts);
@@ -102,7 +110,7 @@ const getPersonalizedRecommnedations = async () => {
   }
 
   // Truy vấn sản phẩm dựa trên category
-  return await Product.find({ category: { $in: mappedCategories } }).limit(10);
+  return await Product.find({ category: { $in: mappedCategories } }).limit(20);
 };
 
 // 🔹 Kết hợp cả 3 phương pháp để tạo danh sách gợi ý tốt nhất
@@ -110,7 +118,7 @@ const getHybridRecommendations = async (userId) => {
   const [collaborative, contentBased, personalized] = await Promise.all([
     getCollaborativeRecommendations(userId),
     getContentBaseRecommendations(userId),
-    getPersonalizedRecommnedations(),
+    getPersonalizedRecommendations(),
   ]);
 
   const uniqueRecommendations = new Map();
@@ -150,6 +158,6 @@ const getRecommendations = async (userId) => {
 module.exports = {
   getRecommendations,
   getContentBaseRecommendations,
-  getPersonalizedRecommnedations,
+  getPersonalizedRecommendations,
   getCollaborativeRecommendations,
 };

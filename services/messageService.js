@@ -7,27 +7,27 @@ const sendMessage = async (senderId, receiverId, message) => {
       sender: senderId,
       receiver: receiverId,
       message,
-      isRead: false,
     });
 
     await newMessage.save();
     return newMessage;
   } catch (error) {
-    console.error("❌ Lỗi khi gửi tin nhắn:", error);
-    throw new Error("Không thể gửi tin nhắn, vui lòng thử lại.");
+    console.error("❌ Lỗi khi gửi tin nhắn:", error.message);
+    throw new Error("Không thể gửi tin nhắn: " + error.message);
   }
 };
-// 🟢 Lấy danh sách tin nhắn giữa User và Admin
-const getMessages = async (userId, adminId) => {
+
+// 🟢 Lấy tin nhắn giữa hai user
+const getMessages = async (userId1, userId2) => {
   try {
     return await Message.find({
       $or: [
-        { sender: userId, receiver: adminId },
-        { sender: adminId, receiver: userId },
+        { sender: userId1, receiver: userId2 },
+        { sender: userId2, receiver: userId1 },
       ],
     }).sort({ createdAt: 1 });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy tin nhắn:", error);
+    console.error("❌ Lỗi lấy tin nhắn:", error.message);
     throw new Error("Không thể lấy tin nhắn.");
   }
 };
@@ -42,9 +42,13 @@ const markAsRead = async (messageId) => {
     );
     return updatedMessage;
   } catch (error) {
-    console.error("❌ Lỗi khi cập nhật trạng thái tin nhắn:", error);
+    console.error("❌ Lỗi cập nhật trạng thái tin nhắn:", error.message);
     throw new Error("Không thể cập nhật trạng thái tin nhắn.");
   }
 };
 
-module.exports = { sendMessage, getMessages, markAsRead };
+module.exports = {
+  sendMessage,
+  getMessages,
+  markAsRead,
+};

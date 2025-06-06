@@ -12,6 +12,8 @@ const bodyParser = require("body-parser");
 const http = require("http");
 const { Server } = require("socket.io");
 const onlineUsers = require("./config/onlineUser");
+const { socketHandler } = require("./config/socketHandler");
+const chatbot = require("./services/chatbotService");
 
 // ✅ Khởi tạo ứng dụng Express
 const app = express();
@@ -73,40 +75,37 @@ mongoose
   });
 
 // ✅ Cấu hình Socket.IO
+// Khởi tạo socket server
 const io = new Server(server, {
   cors: {
-    origin: process.env.LOCAL_HOST || "http://localhost:3000", // Mặc định là localhost nếu chưa cấu hình
+    origin: process.env.LOCAL_HOST || "http://localhost:3000",
     credentials: true,
   },
 });
 
-// ✅ Xử lý kết nối Socket.IO
-io.on("connection", (socket) => {
-  console.log("🟢 Người dùng đã kết nối:", socket.id);
-
-  // Nhận userId từ client và lưu vào danh sách online
-  socket.on("userOnline", (userId) => {
-    if (userId) {
-      onlineUsers.addUser(userId, socket.id);
-      console.log(`✅ User ${userId} đã được đăng ký vào danh sách online.`);
-    }
-    console.log(onlineUsers);
-  });
-
-  socket.on("disconnect", () => {
-    onlineUsers.removeUser(socket.id);
-    console.log(`🔴 User với socket ID ${socket.id} đã ngắt kết nối.`);
-  });
-});
-
-app.set("onlineUsers", onlineUsers);
+socketHandler(io);
 app.set("io", io);
+app.set("onlineUsers", onlineUsers);
 
 // ✅ Ghi log chi tiết khi có request đến API
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
+
+// khởi tạo chatbot
+async function start() {
+  try {
+    await chatbot.loadClassifier();
+    console.log("Load classifier thành công");
+  } catch (err) {
+    console.error("Lỗi khi load classifier:", err);
+    console.log("Load classifier lỗi, sẽ train lại...");
+    await chatbot.trainAndSave();
+  }
+}
+
+start();
 
 // ✅ Sử dụng routes
 app.use("/api", allRoutes);

@@ -179,7 +179,7 @@ const googleCallback = async (req, res, next) => {
       const refreshToken = generateRefreshToken(user._id);
 
       // Chuyển hướng đến frontend với token trong URL
-      const redirectUrl = `http://localhost:5173/levents/login?accessToken=${accessToken}&refreshToken=${refreshToken.token}`;
+      const redirectUrl = `http://localhost:5173/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
       res.redirect(redirectUrl);
     } catch (tokenError) {
       console.error("Token Generation Error:", tokenError);
