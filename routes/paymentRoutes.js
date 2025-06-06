@@ -17,7 +17,8 @@ const {
   removeLineItemsFromCart,
   removeLineItemFromCartPayment,
 } = require("../services/cartService");
-const { notifyNewOrder } = require("../services/notificationService");
+const { createNotification } = require("../services/notificationService");
+const { updateInvoiceStatus } = require("../services/invoiceService");
 
 router.get("/", function (req, res, next) {
   res.render("orderlist", { title: "Danh sách đơn hàng" });
@@ -56,6 +57,8 @@ router.post("/create_payment_url", async function (req, res, next) {
   let returnUrl = process.env.vnp_ReturnUrl;
   let orderId = moment(date).format("DDHHmmss"); // Mã đơn hàng
   let amount = req.body.amount;
+  let numberphone = req.body.numberphone;
+  let addressDetail = req.body.addressDetail;
   let bankCode = req.body.bankCode;
   let userId = req.body.userId; // Lưu user Id để tạo hóa
 
@@ -102,6 +105,8 @@ router.post("/create_payment_url", async function (req, res, next) {
     const newInvoice = new Invoice({
       user: userId,
       totalAmount: amount,
+      numberphone: numberphone,
+      addressDetail: addressDetail,
       lineItems: selectedCartItems.map((item) => ({
         productId: item.product._id,
         productName: item.product.title,
@@ -112,6 +117,13 @@ router.post("/create_payment_url", async function (req, res, next) {
         color: item.color,
         gender: item.gender,
       })),
+      status: "Pending",
+      statusTimeLine: [
+        {
+          status: "Pending",
+          updatedAt: new Date(),
+        },
+      ],
       vnp_TxnRef: orderId, // Lưu mã đơn hàng để đối chiếu sau này
       paymentMethod: bankCode || "VNPAY",
     });
@@ -121,8 +133,29 @@ router.post("/create_payment_url", async function (req, res, next) {
     await removeLineItemsFromCart(cartId, lineItemIds);
     console.log("🎯 Hoàn tất xóa LineItems khỏi giỏ hàng!");
 
-    // 🔥 Gửi thông báo real-time
-    await notifyNewOrder(newInvoice._id, userId);
+    // 🔥 Gửi thông báo real-time đến cho người dùng và Admin
+    await Promise.all([
+      // 🔔 Thông báo cho người dùng
+      createNotification({
+        user: userId,
+        title: "Đơn hàng đã được đặt thành công!",
+        message: `Cảm ơn bạn đã đặt đơn hàng với mã #${newInvoice._id}`,
+        isGlobal: false,
+        type: "order",
+        invoiceId: newInvoice._id,
+      }),
+
+      // 🔔 Thông báo cho Admin
+      createNotification({
+        user: process.env.ADMIN_ID,
+        title: "Đơn hàng mới từ khách hàng",
+        message: `Khách hàng ${userId} vừa đặt đơn hàng mã #${newInvoice._id}`,
+        isGlobal: false,
+        type: "order",
+        invoiceId: newInvoice._id,
+        relatedUserId: userId,
+      }),
+    ]);
   } catch (error) {
     console.error("❌ Lỗi khi lưu hóa đơn:", error);
     return res.status(500).json({ message: "Lỗi hệ thống, thử lại sau!" });
@@ -177,7 +210,7 @@ router.get("/vnpay_return", async function (req, res, next) {
 
     // Nếu giao dịch thành công (00), cập nhật trạng thái "Paid"
     if (transactionStatus === "00") {
-      invoice.status = "Paid";
+      await updateInvoiceStatus(invoice._id, "Paid");
       await productService.updateStockProduct(invoice.lineItems);
     } else {
       invoice.status = "Cancelled";

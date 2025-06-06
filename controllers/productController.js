@@ -5,7 +5,12 @@ const addProductController = async (req, res) => {
   try {
     const productData = req.body; // Dữ liệu sản phẩm từ body
     const files = req.files; // Mảng các ảnh tải lên từ client
-
+    console.log(
+      "📌 Request nhận được ở Add product:",
+      req.params,
+      req.body,
+      req.files
+    );
     // Kiểm tra nếu không có ảnh nào được tải lên
     if (!files || files.length === 0) {
       return res.status(400).json({ message: "No images uploaded" });
@@ -67,12 +72,33 @@ const getProductByIdController = async (req, res) => {
 
 const updateProductById = async (req, res) => {
   try {
+    console.log("📌 Request nhận được:", req.params, req.body, req.files);
+    const productId = req.params.id;
     const productData = req.body;
-    const file = req.file;
+    const files = req.files;
+
+    // Lấy danh sách ảnh từ Cloudinary
+    let imageUrls = productData.images ? [...productData.images] : [];
+    // Nếu có ảnh mới, thêm vào danh sách
+    if (files && files.length > 0) {
+      const uploadedUrls = files.map((file) => file.path);
+      imageUrls = [...imageUrls, ...uploadedUrls];
+    }
+    // Nếu có ảnh bị xóa, loại bỏ khỏi danh sách
+    if (productData.deletedImages) {
+      const deletedImages = Array.isArray(productData.deletedImages)
+        ? productData.deletedImages
+        : [productData.deletedImages];
+
+      imageUrls = imageUrls.filter((url) => !deletedImages.includes(url));
+    }
+    // Cập nhật dữ liệu sản phẩm với danh sách ảnh mới
+    productData.images = imageUrls;
+
+    // Gọi service để cập nhật sản phẩm
     const updatedProduct = await productService.updateProductById(
-      req.params.id,
-      productData,
-      file
+      productId,
+      productData
     );
     res.status(200).json(updatedProduct);
   } catch (error) {
@@ -82,8 +108,10 @@ const updateProductById = async (req, res) => {
 
 const deleteProductByIdController = async (req, res) => {
   try {
+    const userId = req.user._id;
     const deletedProduct = await productService.deleteProductById(
-      req.params.id
+      req.params.id,
+      userId
     );
     res
       .status(200)

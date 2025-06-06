@@ -11,21 +11,13 @@ require("dotenv").config();
 const bodyParser = require("body-parser");
 const http = require("http");
 const { Server } = require("socket.io");
+const onlineUsers = require("./config/onlineUser");
+const { socketHandler } = require("./config/socketHandler");
+const chatbot = require("./services/chatbotService");
 
 // ✅ Khởi tạo ứng dụng Express
 const app = express();
 const server = http.createServer(app);
-
-// ✅ Cấu hình Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: process.env.LOCAL_HOST || "http://localhost:3000", // Mặc định là localhost nếu chưa cấu hình
-    credentials: true,
-  },
-});
-
-// 📌 Lưu `io` vào app để có thể sử dụng ở các file khác
-app.set("io", io);
 
 // ✅ Middleware cơ bản
 app.use(express.json());
@@ -82,14 +74,18 @@ mongoose
     process.exit(1);
   });
 
-// ✅ Xử lý kết nối Socket.IO
-io.on("connection", (socket) => {
-  console.log(`🔌 Client đã kết nối: ${socket.id}`);
-
-  socket.on("disconnect", () => {
-    console.log(`❌ Client đã ngắt kết nối: ${socket.id}`);
-  });
+// ✅ Cấu hình Socket.IO
+// Khởi tạo socket server
+const io = new Server(server, {
+  cors: {
+    origin: process.env.LOCAL_HOST || "http://localhost:3000",
+    credentials: true,
+  },
 });
+
+socketHandler(io);
+app.set("io", io);
+app.set("onlineUsers", onlineUsers);
 
 // ✅ Ghi log chi tiết khi có request đến API
 app.use((req, res, next) => {
@@ -97,8 +93,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// khởi tạo chatbot
+async function start() {
+  try {
+    await chatbot.loadClassifier();
+    console.log("Load classifier thành công");
+  } catch (err) {
+    console.error("Lỗi khi load classifier:", err);
+    console.log("Load classifier lỗi, sẽ train lại...");
+    await chatbot.trainAndSave();
+  }
+}
+
+start();
+
 // ✅ Sử dụng routes
 app.use("/api", allRoutes);
 
 // ✅ Xuất module
-module.exports = { app, io };
+module.exports = { app, io, onlineUsers };

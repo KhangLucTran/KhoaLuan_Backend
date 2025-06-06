@@ -1,3 +1,4 @@
+const { boolean } = require("joi");
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -7,11 +8,34 @@ const invoiceSchema = new Schema({
     ref: "User",
     required: true,
   },
+  addressDetail: {
+    type: String,
+    reuire: true,
+    default: "",
+  },
+  numberphone: {
+    type: String,
+    require: true,
+    default: "",
+  },
+
   status: {
     type: String,
     enum: ["Pending", "Paid", "Shipped", "Completed", "Cancelled"],
     default: "Pending",
   },
+  statusTimeLine: [
+    {
+      status: {
+        type: String,
+        enum: ["Pending", "Paid", "Shipped", "Completed", "Cancelled"],
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   issuedAt: {
     type: Date,
     default: Date.now,
@@ -34,6 +58,7 @@ const invoiceSchema = new Schema({
       size: String,
       color: String,
       gender: String,
+      hasRated: { type: Boolean, default: false },
     },
   ],
   paymentMethod: String,
