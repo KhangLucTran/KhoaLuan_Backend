@@ -13,7 +13,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const onlineUsers = require("./config/onlineUser");
 const { socketHandler } = require("./config/socketHandler");
-const chatbot = require("./services/chatbotService");
+const chatbot = require("./services/chatbotTrainService");
 
 // ✅ Khởi tạo ứng dụng Express
 const app = express();
@@ -96,7 +96,7 @@ app.use((req, res, next) => {
 // khởi tạo chatbot
 async function start() {
   try {
-    await chatbot.loadClassifier();
+    await chatbot.loadModel();
     console.log("Load classifier thành công");
   } catch (err) {
     console.error("Lỗi khi load classifier:", err);

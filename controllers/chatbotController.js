@@ -1,7 +1,8 @@
 const responses = require("../constants/chatbotResponse");
-const chatbotService = require("../services/chatbotService");
+const chatbotTrainService = require("../services/chatbotTrainService");
 const recommendSystemService = require("../services/recommendSystemService");
 const productService = require("../services/productService");
+const { lang } = require("moment");
 
 const redirectMap = {
   redirect_to_products: {
@@ -63,7 +64,7 @@ async function chatbotReply(req, res) {
   try {
     const { message } = req.body;
     const userId = req.user?._id || null;
-    console.log(userId);
+    console.log("UserId:", userId);
     console.log("Message User:", message);
     if (!message || message.trim() === "") {
       return res.status(400).json({
@@ -79,13 +80,14 @@ async function chatbotReply(req, res) {
 
     const money = extractMoneyFromMessage(message);
     console.log("tiền:", money);
-    const intent = await chatbotService.getIntent(message);
 
+    const intentResult = await chatbotTrainService.getIntent(message);
+    const intent = intentResult.intent;
+
+    console.log("Intent Mapping from Message: ", intent);
     if (money) {
       return recommendSetByIntentAndBudget(req, res, intent, money);
     }
-
-    console.log("Intent Mapping from Message: ", intent);
     switch (intent) {
       // Intent Default
       case "what_can_you_do":
