@@ -11,21 +11,11 @@ require("dotenv").config();
 const bodyParser = require("body-parser");
 const http = require("http");
 const { Server } = require("socket.io");
+const onlineUsers = require("./config/onlineUser");
 
 // ✅ Khởi tạo ứng dụng Express
 const app = express();
 const server = http.createServer(app);
-
-// ✅ Cấu hình Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: process.env.LOCAL_HOST || "http://localhost:3000", // Mặc định là localhost nếu chưa cấu hình
-    credentials: true,
-  },
-});
-
-// 📌 Lưu `io` vào app để có thể sử dụng ở các file khác
-app.set("io", io);
 
 // ✅ Middleware cơ bản
 app.use(express.json());
@@ -82,14 +72,35 @@ mongoose
     process.exit(1);
   });
 
+// ✅ Cấu hình Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: process.env.LOCAL_HOST || "http://localhost:3000", // Mặc định là localhost nếu chưa cấu hình
+    credentials: true,
+  },
+});
+
 // ✅ Xử lý kết nối Socket.IO
 io.on("connection", (socket) => {
-  console.log(`🔌 Client đã kết nối: ${socket.id}`);
+  console.log("🟢 Người dùng đã kết nối:", socket.id);
+
+  // Nhận userId từ client và lưu vào danh sách online
+  socket.on("userOnline", (userId) => {
+    if (userId) {
+      onlineUsers.addUser(userId, socket.id);
+      console.log(`✅ User ${userId} đã được đăng ký vào danh sách online.`);
+    }
+    console.log(onlineUsers);
+  });
 
   socket.on("disconnect", () => {
-    console.log(`❌ Client đã ngắt kết nối: ${socket.id}`);
+    onlineUsers.removeUser(socket.id);
+    console.log(`🔴 User với socket ID ${socket.id} đã ngắt kết nối.`);
   });
 });
+
+app.set("onlineUsers", onlineUsers);
+app.set("io", io);
 
 // ✅ Ghi log chi tiết khi có request đến API
 app.use((req, res, next) => {
@@ -101,4 +112,4 @@ app.use((req, res, next) => {
 app.use("/api", allRoutes);
 
 // ✅ Xuất module
-module.exports = { app, io };
+module.exports = { app, io, onlineUsers };

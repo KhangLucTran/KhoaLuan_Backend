@@ -1,20 +1,23 @@
 const Notification = require("../models/notificationModel");
-const { io } = require("./../app");
+const { app, io } = require("./../app");
+const onlineUsers = require("../config/onlineUser");
 
-/**
- * 📌 Tạo và gửi thông báo real-time
- * @param {Object} data - Dữ liệu thông báo
- */
 const sendNotification = async (data) => {
-  const notification = await Notification.create(data);
+  try {
+    const notification = await Notification.create(data);
+    const userSocketId = onlineUsers.getUserSocket(data.user);
 
-  if (io) {
-    io.emit("new_notification", notification);
-  } else {
-    console.warn("⚠️ Không thể gửi thông báo: io chưa được khởi tạo.");
+    if (userSocketId) {
+      io.to(userSocketId).emit("new_notification", notification);
+      console.log(`📩 Đã gửi thông báo cho user ${data.user}`);
+    } else {
+      console.log(`⚠️ User ${data.user} không online.`);
+    }
+
+    return notification;
+  } catch (error) {
+    console.error("❌ Lỗi khi gửi thông báo:", error);
   }
-
-  return notification;
 };
 
 /**
@@ -43,9 +46,10 @@ const markNotificationAsRead = async (notificationId) => {
  * 📌 Gửi thông báo khi admin thêm sản phẩm mới
  * @param {String} title - Tên sản phẩm mới
  */
-const notifyNewProduct = async (title) => {
+const notifyNewProduct = async (productId, message) => {
   return await sendNotification({
-    message: `🆕 Sản phẩm mới: ${title} đã được thêm!`,
+    productId,
+    message,
     type: "product",
   });
 };
@@ -69,10 +73,11 @@ const notifyNewOrder = async (invoiceId, userId) => {
  * @param {String} orderId - ID đơn hàng
  * @param {String} userId - ID của người dùng nhận thông báo
  */
-const notifyOrderUpdate = async (orderId, userId, message, type) => {
+const notifyOrderUpdate = async (orderId, userId, productId, message, type) => {
   return await sendNotification({
     user: userId,
     orderId,
+    productId: productId,
     message: message,
     type: type,
   });
