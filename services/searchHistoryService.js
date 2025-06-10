@@ -4,7 +4,7 @@ const SearchHistory = require("../models/searchHistory");
 const getRecentSearches = async (userId, limit = 10) => {
   const searches = await SearchHistory.find({ userId })
     .sort({ date: -1 }) // Lấy dữ liệu gần nhất
-    .limit(5); // Lấy lịch sử của 5 ngày gần nhất
+    .limit(14); // Lấy lịch sử của 5 ngày gần nhất
 
   return searches
     .flatMap((item) => item.keywords)

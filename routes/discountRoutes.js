@@ -11,6 +11,16 @@ router.post(
   discountController.createDiscount
 );
 
+// API: lấy discount của user
+router.get("/user", authenticateToken, discountController.getDiscountsByUser);
+
+// 6. API: sử dụng Discount của user
+router.put(
+  "/use-discount",
+  authenticateToken,
+  discountController.applyDiscount
+);
+
 // 2. API: lấy tất cả Discount, cần token (PUBLIC)
 router.get("/getall-discount", discountController.getAllDiscounts);
 

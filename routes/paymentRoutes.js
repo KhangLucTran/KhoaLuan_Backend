@@ -12,6 +12,7 @@ const crypto = require("crypto");
 require("dotenv").config();
 const Invoice = require("../models/invoiceModel");
 const productService = require("../services/productService");
+const discountService = require("../services/discountService");
 const User = require("../models/userModel"); // Import User để xác nhận userId
 const {
   removeLineItemsFromCart,
@@ -57,6 +58,7 @@ router.post("/create_payment_url", async function (req, res, next) {
   let returnUrl = process.env.vnp_ReturnUrl;
   let orderId = moment(date).format("DDHHmmss"); // Mã đơn hàng
   let amount = req.body.amount;
+  let discountId = req.body.discountId;
   let numberphone = req.body.numberphone;
   let addressDetail = req.body.addressDetail;
   let bankCode = req.body.bankCode;
@@ -133,6 +135,7 @@ router.post("/create_payment_url", async function (req, res, next) {
     await removeLineItemsFromCart(cartId, lineItemIds);
     console.log("🎯 Hoàn tất xóa LineItems khỏi giỏ hàng!");
 
+    await discountService.applyDiscountForUser(discountId, userId);
     // 🔥 Gửi thông báo real-time đến cho người dùng và Admin
     await Promise.all([
       // 🔔 Thông báo cho người dùng

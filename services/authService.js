@@ -20,11 +20,14 @@ const registerService = async ({
   numberphone,
   provider,
   addressData = null,
+  skipExistCheck = false,
 }) => {
   try {
     // Kiểm tra xem email đã tồn tại chưa
-    const existingUser = await User.findOne({ email }).lean();
-    if (existingUser) throw new Error("Email đã tồn tại!");
+    if (!skipExistCheck) {
+      const existingUser = await User.findOne({ email }).lean();
+      if (existingUser) throw new Error("Email đã tồn tại!");
+    }
 
     // Mã hóa mật khẩu nhanh chóng
     const hashedPassword = bcrypt.hashSync(password, 10);
@@ -252,7 +255,7 @@ const verifyOTPUser = async (email, otpInput) => {
       return { error: 1, message: "OTP không hợp lệ." };
     }
 
-    if (new Date().now > new Date(otpExpiry)) {
+    if (Date().now > new Date(otpExpiry)) {
       console.log("Current Time: ", new Date());
       console.log("OTP Expiry Time: ", new Date(otpExpiry));
       return { error: 1, message: "OTP đã hết hạn" };
@@ -373,9 +376,12 @@ const handleGoogleStrategy = async (
       return done(new Error("Không tìm thấy email từ Google"));
     }
 
+    console.log("Google OAuth Profile:", profile._json);
+
     const email = profile.emails[0].value;
     const avatar = profile.photos?.[0]?.value || null;
     const googleId = profile.id;
+    console.log("Google OAuth ID:", googleId);
 
     console.log("Google OAuth Login - Email:", email);
 
@@ -388,9 +394,10 @@ const handleGoogleStrategy = async (
       // Đăng ký user mới
       const newUserData = await registerService({
         email,
-        password: "googleAuth", // OAuth không cần password
+        password: "GoogleAuth@", // OAuth không cần password
         username: profile.displayName || "Google User",
         provider: "google",
+        skipExistCheck: true,
       });
 
       if (newUserData.error) {
@@ -423,6 +430,55 @@ const handleGoogleStrategy = async (
   }
 };
 
+// 10. Xử lí đăng nhập bằng Facebook
+const handleFacebookStrategy = async (
+  accessToken,
+  refreshToken,
+  profile,
+  done
+) => {
+  try {
+    const email = profile.emails?.[0]?.value;
+    const avatar = profile.photos?.[0]?.value;
+    const fbId = profile.id;
+
+    if (!email) return done(new Error("Không tìm thấy email từ Facebook"));
+
+    let user = await User.findOne({ email }).populate("profileId").lean();
+
+    if (!user) {
+      const newUserData = await registerService({
+        email,
+        password: "FacebookAuth@",
+        username: profile.displayName || "Facebook User",
+        provider: "facebook",
+        skipExistCheck: true,
+      });
+
+      if (newUserData.error) {
+        return done(new Error(newUserData.error));
+      }
+
+      user = await User.findById(newUserData.userId)
+        .populate("profileId")
+        .lean();
+
+      if (avatar) {
+        await Profile.findByIdAndUpdate(newUserData.profileId, { avatar });
+      }
+    } else {
+      if (avatar && !user.profileId?.avatar) {
+        await Profile.findByIdAndUpdate(user.profileId._id, { avatar });
+      }
+    }
+
+    return done(null, user);
+  } catch (error) {
+    console.error("Facebook Auth Strategy Error:", error);
+    return done(error);
+  }
+};
+
 module.exports = {
   registerService,
   loginService,
@@ -433,4 +489,5 @@ module.exports = {
   verifyAccountUser,
   changePasswordUser,
   handleGoogleStrategy,
+  handleFacebookStrategy,
 };

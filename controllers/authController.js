@@ -6,6 +6,7 @@ const {
   rotateRefreshToken,
 } = require("../config/tokenUtils");
 const { sendVerifyEmail } = require("../services/emailService");
+const userModel = require("../models/userModel");
 
 // 1. Controller đăng ký
 const registerController = async (req, res) => {
@@ -178,6 +179,11 @@ const googleCallback = async (req, res, next) => {
       const accessToken = await generateAccessToken(user);
       const refreshToken = generateRefreshToken(user._id);
 
+      await userModel.findByIdAndUpdate(user._id, {
+        refresh_token: refreshToken.token,
+        refresh_token_expiry: refreshToken.expiry,
+      });
+
       // Chuyển hướng đến frontend với token trong URL
       const redirectUrl = `http://localhost:5173/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
       res.redirect(redirectUrl);
@@ -206,6 +212,41 @@ const refreshTokenCotroller = async (req, res) => {
     return res.status(401).json({ message: error.message });
   }
 };
+
+// 13. Controller đăng nhập bằng Facebook
+const facebookLogin = (req, res, next) => {
+  passport.authenticate("facebook", { scope: ["email"] })(req, res, next);
+};
+// 14. Callback sau khi người dùng đăng nhập thành công bằng Facebook
+const facebookCallback = (req, res, next) => {
+  passport.authenticate("facebook", async (err, user) => {
+    if (err) {
+      console.error("Facebook Authentication Error:", err);
+      return res.status(500).json({ message: "Lỗi xác thực", error: err });
+    }
+
+    if (!user) {
+      return res.status(401).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    try {
+      const accessToken = await generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user._id);
+
+      await userModel.findByIdAndUpdate(user._id, {
+        refresh_token: refreshToken.token,
+        refresh_token_expiry: refreshToken.expiry,
+      });
+
+      const redirectUrl = `http://localhost:5173/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
+      res.redirect(redirectUrl);
+    } catch (error) {
+      console.error("Token Generation Error:", error);
+      return res.status(500).json({ message: "Lỗi tạo token", error });
+    }
+  })(req, res, next);
+};
+
 module.exports = {
   registerController,
   loginController,
@@ -218,4 +259,6 @@ module.exports = {
   googleCallback,
   googleLogin,
   refreshTokenCotroller,
+  facebookLogin,
+  facebookCallback,
 };

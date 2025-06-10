@@ -71,7 +71,7 @@ const getCollaborativeRecommendations = async (userId) => {
   // Tìm sản phẩm liên quan đến các từ khóa này
   return await Product.find({
     category: { $in: Array.from(mappedCategories) },
-  }).limit(20);
+  });
 };
 
 //🔹 Content-based Filtering: Gợi ý dựa trên nội dung sản phẩm đã tìm kiếm
@@ -91,7 +91,7 @@ const getContentBaseRecommendations = async (userId) => {
   }));
 
   // Truy vấn các sản phẩm có title chứa ít nhất một trong các từ khóa
-  return await Product.find({ $or: queryConditions }).limit(20);
+  return await Product.find({ $or: queryConditions });
 };
 
 // 🔹 Personalized Recommendations: Gợi ý cho user mới chưa có lịch sử tìm kiếm
@@ -106,33 +106,34 @@ const getPersonalizedRecommendations = async () => {
 
   // Nếu không có category nào được ánh xạ, có thể dùng fallback (ví dụ: lấy sản phẩm mới nhất)
   if (!mappedCategories.length) {
-    return await Product.find().limit(10);
+    return await Product.find();
   }
 
   // Truy vấn sản phẩm dựa trên category
-  return await Product.find({ category: { $in: mappedCategories } }).limit(20);
+  return await Product.find({ category: { $in: mappedCategories } });
 };
 
 // 🔹 Kết hợp cả 3 phương pháp để tạo danh sách gợi ý tốt nhất
 const getHybridRecommendations = async (userId) => {
-  const [collaborative, contentBased, personalized] = await Promise.all([
-    getCollaborativeRecommendations(userId),
-    getContentBaseRecommendations(userId),
-    getPersonalizedRecommendations(),
-  ]);
+  const [collaborative, contentBased, personalized, allProducts] =
+    await Promise.all([
+      getCollaborativeRecommendations(userId),
+      getContentBaseRecommendations(userId),
+      getPersonalizedRecommendations(),
+      Product.find(), // ✅ lấy toàn bộ sản phẩm trong DB
+    ]);
 
   const uniqueRecommendations = new Map();
 
   const addToRecommendations = (products, priority) => {
     products.forEach((product) => {
-      const productId = product._id.toString(); // Chuyển ID về string để so sánh
+      const productId = product._id.toString();
       if (!uniqueRecommendations.has(productId)) {
         uniqueRecommendations.set(productId, {
           ...product.toObject(),
           priority,
         });
       } else {
-        // Nếu sản phẩm đã tồn tại, cập nhật mức độ ưu tiên lớn hơn
         uniqueRecommendations.get(productId).priority = Math.max(
           uniqueRecommendations.get(productId).priority,
           priority
@@ -140,16 +141,27 @@ const getHybridRecommendations = async (userId) => {
       }
     });
   };
-  addToRecommendations(personalized, 1); // Mức ưu tiên thấp nhất
-  addToRecommendations(contentBased, 2);
-  addToRecommendations(collaborative, 3); // Mức ưu tiên cao nhất
 
-  // Sắp xếp theo priority giảm dần
-  console.log(addToRecommendations.length);
+  addToRecommendations(personalized, 1);
+  addToRecommendations(collaborative, 2);
+  addToRecommendations(contentBased, 3);
+
+  // ✅ Gộp thêm các sản phẩm chưa có trong gợi ý, set priority = 0
+  allProducts.forEach((product) => {
+    const productId = product._id.toString();
+    if (!uniqueRecommendations.has(productId)) {
+      uniqueRecommendations.set(productId, {
+        ...product.toObject(),
+        priority: 0, // priority thấp nhất (sản phẩm không nằm trong gợi ý)
+      });
+    }
+  });
+
   return Array.from(uniqueRecommendations.values()).sort(
     (a, b) => b.priority - a.priority
   );
 };
+
 // API chính để lấy danh sách gợi ý sản phẩm
 const getRecommendations = async (userId) => {
   return await getHybridRecommendations(userId);
