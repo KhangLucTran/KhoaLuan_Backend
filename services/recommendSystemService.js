@@ -143,8 +143,8 @@ const getHybridRecommendations = async (userId) => {
   };
 
   addToRecommendations(personalized, 1);
-  addToRecommendations(collaborative, 2);
-  addToRecommendations(contentBased, 3);
+  addToRecommendations(collaborative, 3);
+  addToRecommendations(contentBased, 2);
 
   // ✅ Gộp thêm các sản phẩm chưa có trong gợi ý, set priority = 0
   allProducts.forEach((product) => {

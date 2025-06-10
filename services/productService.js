@@ -269,13 +269,13 @@ const recommendHienDai = () =>
   recommendByCategories(["Accessories", "Hat", "Jacket", "T-Shirt"]);
 
 const intentToCategories = {
-  recommendLichLam: ["Shirt", "Pants", "Jacket"],
-  recommendThoaiMai: ["T-Shirt", "Short", "Accessories"],
-  recommendNangDong: ["T-Shirt", "Jacket", "Short"],
-  recommendStreetStyle: ["Hat", "Jacket", "T-Shirt", "Accessories"],
-  recommendToiGian: ["T-Shirt", "Pants"],
-  recommendCongSo: ["Shirt", "Pants", "Accessories"],
-  recommendHienDai: ["Accessories", "Hat", "Jacket", "T-Shirt"],
+  recommendLichLam: ["Shirt", "Pants", "Jacket"], // Shirt + Pants => OK
+  recommendThoaiMai: ["T-Shirt", "Short", "Accessories"], // T-Shirt + Short => OK
+  recommendNangDong: ["T-Shirt", "Short", "Jacket"], // T-Shirt + Short => OK
+  recommendStreetStyle: ["T-Shirt", "Short", "Jacket", "Accessories"], // T-Shirt + Short => OK
+  recommendToiGian: ["T-Shirt", "Pants"], // T-Shirt + Pants => OK
+  recommendCongSo: ["Shirt", "Pants", "Accessories"], // Shirt + Pants => OK
+  recommendHienDai: ["T-Shirt", "Short", "Jacket", "Accessories", "Hat"], // T-Shirt + Short => OK
 };
 
 const recommendSetByBudget = async (intent, budget) => {
@@ -294,6 +294,7 @@ const recommendSetByBudget = async (intent, budget) => {
     .sort({ createdAt: -1 })
     .exec();
   console.log("Sản phẩm", products);
+
   const pants = products.filter((p) => pantsCategories.includes(p.category));
   const shirts = products.filter((p) => shirtCategories.includes(p.category));
   const accessories = products.filter((p) =>
@@ -301,6 +302,9 @@ const recommendSetByBudget = async (intent, budget) => {
   );
   const jackets = products.filter((p) => jacketCategories.includes(p.category));
   const hats = products.filter((p) => hatCategories.includes(p.category));
+
+  // Nếu không có áo hoặc không có quần thì không thể gợi ý
+  if (pants.length === 0 || shirts.length === 0) return [];
 
   let bestPair = null;
   let bestPairPrice = 0;
@@ -315,6 +319,7 @@ const recommendSetByBudget = async (intent, budget) => {
     }
   }
 
+  // Nếu không tìm được cặp áo + quần nào trong ngân sách thì return []
   if (!bestPair) return [];
 
   let remainingBudget = budget - bestPairPrice;

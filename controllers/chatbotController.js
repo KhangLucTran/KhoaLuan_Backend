@@ -159,6 +159,7 @@ async function handleSuggestSize(height, weight, res) {
 const recommendSetByIntentAndBudget = async (req, res, intent, money) => {
   try {
     const products = await productService.recommendSetByBudget(intent, money);
+    console.log("Sản phẩm gợi ý:", products);
     if (products.length === 0) {
       return res.json({
         reply: `Rất tiếc, hiện tại không tìm được bộ đồ phù hợp với ngân sách ${money.toLocaleString()}₫.`,
