@@ -30,7 +30,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // ✅ Cấu hình CORS
 app.use(
   cors({
-    origin: process.env.LOCAL_HOST || "http://localhost:3000",
+    origin: [process.env.LOCAL_HOST, "https://khoaluan-b7zv.onrender.com"],
     credentials: true,
   })
 );
@@ -78,7 +78,7 @@ mongoose
 // Khởi tạo socket server
 const io = new Server(server, {
   cors: {
-    origin: process.env.LOCAL_HOST || "http://localhost:3000",
+    origin: [process.env.LOCAL_HOST, "https://khoaluan-b7zv.onrender.com"],
     credentials: true,
   },
 });
