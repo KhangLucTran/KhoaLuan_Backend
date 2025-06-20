@@ -185,7 +185,7 @@ const googleCallback = async (req, res, next) => {
       });
 
       // Chuyển hướng đến frontend với token trong URL
-      const redirectUrl = `http://localhost:5173/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
+      const redirectUrl = `https://khoaluan-b7zv.onrender.com/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
       res.redirect(redirectUrl);
     } catch (tokenError) {
       console.error("Token Generation Error:", tokenError);
@@ -238,7 +238,7 @@ const facebookCallback = (req, res, next) => {
         refresh_token_expiry: refreshToken.expiry,
       });
 
-      const redirectUrl = `http://localhost:5173/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
+      const redirectUrl = `https://khoaluan-b7zv.onrender.com/levents/login?access_token=${accessToken}&refresh_token=${refreshToken.token}`;
       res.redirect(redirectUrl);
     } catch (error) {
       console.error("Token Generation Error:", error);
