@@ -210,7 +210,7 @@ const generateOTP = () => {
 const forgotPasswordUser = async (email) => {
   try {
     const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 6 * 1000); // OTP hết hạn trong 10 phút
+    const otpExpiry = new Date(Date.now() + 10 * 6 * 10000); // OTP hết hạn trong 10 phút
 
     // Cập nhật opt và thời gian hết hạn vào cơ sở dữ liệu
     const user = await User.findOneAndUpdate(
@@ -255,12 +255,9 @@ const verifyOTPUser = async (email, otpInput) => {
       return { error: 1, message: "OTP không hợp lệ." };
     }
 
-    if (Date().now > new Date(otpExpiry)) {
-      console.log("Current Time: ", new Date());
-      console.log("OTP Expiry Time: ", new Date(otpExpiry));
+    if (Date.now() > new Date(otpExpiry).getTime()) {
       return { error: 1, message: "OTP đã hết hạn" };
     }
-
     // Nếu OTP hợp lệ
     return { error: 0, message: "OTP hợp lệ" };
   } catch (error) {

@@ -63,7 +63,9 @@ const getAllProducts = async (req, res) => {
 
 const getProductByIdController = async (req, res) => {
   try {
-    const product = await productService.getProductById(req.params.id);
+    const productId = req.params.id;
+    console.log(req.params.id);
+    const product = await productService.getProductById(productId);
     res.status(200).json(product);
   } catch (error) {
     res.status(404).json({ message: error.message });

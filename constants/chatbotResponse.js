@@ -1,13 +1,24 @@
 const responses = {
   what_can_you_do:
     "🤖 Mình có thể giúp bạn những việc sau:\n" +
-    "1. 📦 Kiểm tra trạng thái đơn hàng\n" +
+    "1. 📦 Gợi ý sản phẩm theo phong cách bạn chọn\n" +
     "2. 👕 Gợi ý size dựa trên chiều cao, cân nặng\n" +
     "3. 🔍 Tìm sản phẩm theo sở thích\n" +
     "4. 🛒 Điều hướng đến trang giỏ hàng, yêu thích, hóa đơn, đăng nhập,...\n" +
-    "5. 🎁 Hiển thị các chương trình khuyến mãi hiện có\n" +
+    "5. 🎁 Tư vấn outfit theo phong cách và số tiền bạn có\n" +
     "6. ❓ Trả lời các câu hỏi về cửa hàng, hỗ trợ, và thông tin sản phẩm\n\n" +
     "💬 Bạn muốn mình giúp gì cụ thể hơn không?",
+
+  shop_style:
+    "✨ Shop hiện đang hướng đến 7 phong cách thời trang khác nhau để phù hợp với nhiều cá tính và sở thích:\n\n" +
+    "1. 👔 **Lịch Lãm** – Áo sơ mi, quần dài, áo khoác, phụ kiện\n" +
+    "2. 👕 **Thoải Mái** – Áo thun, quần short, phụ kiện nhẹ nhàng\n" +
+    "3. 🏃‍♂️ **Năng Động** – Áo thun, quần short, khoác ngoài và phụ kiện\n" +
+    "4. 🧢 **Street Style** – Phối đồ tự do, cá tính với mũ, jacket, thun, short\n" +
+    "5. 🧘 **Tối Giản** – Tông màu trung tính, thiết kế đơn giản: thun, quần dài, phụ kiện tinh tế\n" +
+    "6. 🧑‍💼 **Công Sở** – Trang phục lịch sự: sơ mi, quần dài và phụ kiện chuyên nghiệp\n" +
+    "7. 💡 **Hiện Đại** – Phối đa dạng giữa áo thun, jacket, short và mũ hiện đại\n\n" +
+    "🛍️ Bạn muốn mình **tư vấn sản phẩm theo phong cách** nào? Hãy chọn một trong các phong cách trên nhé!",
 
   top_search_products:
     "🔎 Đây là những sản phẩm được tìm kiếm nhiều nhất trên Levents hiện nay. Bạn có thể xem chi tiết bằng cách click vào sản phẩm dưới đây 👇",

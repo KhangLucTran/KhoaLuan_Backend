@@ -26,7 +26,6 @@ const addSearchHistory = async (userId, keyword) => {
 const deleteOldSearchHistory = async () => {
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
   await SearchHistory.deleteMany({ date: { $lt: fourteenDaysAgo } });
 };
 

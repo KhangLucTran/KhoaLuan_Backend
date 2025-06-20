@@ -81,34 +81,7 @@ const getProductById = async (id) => {
       throw new Error("Product not found");
     }
 
-    const imageDetails = await Promise.all(
-      product.images.map(async (imageUrl) => {
-        try {
-          // Lấy đúng public_id từ URL
-          const regex = /\/v\d+\/([^/]+)\/([^/.]+)/;
-          const match = imageUrl.match(regex);
-          if (!match) throw new Error("Invalid Cloudinary URL");
-
-          const publicId = `${match[1]}/${match[2]}`;
-
-          // Gọi Cloudinary API để lấy thông tin ảnh
-          const imageInfo = await cloudinary.api.resource(publicId);
-
-          return {
-            url: imageUrl,
-            fileName: imageInfo.public_id.split("/").pop(),
-            format: imageInfo.format,
-            size: (imageInfo.bytes / 1024).toFixed(2) + " KB",
-            dimensions: `${imageInfo.width}x${imageInfo.height} px`,
-          };
-        } catch (error) {
-          console.error("Error fetching image details from Cloudinary:", error);
-          return null;
-        }
-      })
-    );
-
-    return { ...product.toObject(), imageDetails };
+    return { product };
   } catch (error) {
     throw new Error("Error fetching product by ID: " + error.message);
   }
@@ -254,6 +227,7 @@ const recommendByCategories = async (
 
   return [...onePerCategory, ...additionalProducts];
 };
+
 const recommendLichLam = () =>
   recommendByCategories(["Shirt", "Pants", "Jacket"]);
 const recommendThoaiMai = () =>
@@ -269,11 +243,11 @@ const recommendHienDai = () =>
   recommendByCategories(["Accessories", "Hat", "Jacket", "T-Shirt"]);
 
 const intentToCategories = {
-  recommendLichLam: ["Shirt", "Pants", "Jacket"], // Shirt + Pants => OK
+  recommendLichLam: ["Shirt", "Pants", "Jacket", "Accessories"], // Shirt + Pants => OK
   recommendThoaiMai: ["T-Shirt", "Short", "Accessories"], // T-Shirt + Short => OK
-  recommendNangDong: ["T-Shirt", "Short", "Jacket"], // T-Shirt + Short => OK
+  recommendNangDong: ["T-Shirt", "Short", "Jacket", "Accessories"], // T-Shirt + Short => OK
   recommendStreetStyle: ["T-Shirt", "Short", "Jacket", "Accessories"], // T-Shirt + Short => OK
-  recommendToiGian: ["T-Shirt", "Pants"], // T-Shirt + Pants => OK
+  recommendToiGian: ["T-Shirt", "Pants", "Accessories"], // T-Shirt + Pants => OK
   recommendCongSo: ["Shirt", "Pants", "Accessories"], // Shirt + Pants => OK
   recommendHienDai: ["T-Shirt", "Short", "Jacket", "Accessories", "Hat"], // T-Shirt + Short => OK
 };

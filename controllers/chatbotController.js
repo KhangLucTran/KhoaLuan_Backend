@@ -9,6 +9,18 @@ const redirectMap = {
     path: "/levents/products",
     reply: "Đang chuyển bạn đến trang sản phẩm nhé!",
   },
+  redirect_to_notification: {
+    path: "/levents/profile/notifications",
+    reply: "Đang chuyển bạn đến trang thông báo nhé!",
+  },
+  redirect_to_address: {
+    path: "/levents/profile/address",
+    reply: "Đang chuyển bạn đến trang quản lí địa chỉ nhé!",
+  },
+  redirect_to_change_password: {
+    path: "/levents/profile/change-password",
+    reply: "Đang chuyển bạn đến trang đổi mật khẩu nhé!",
+  },
   redirect_to_login: {
     path: "/levents/login",
     reply: "Đang chuyển bạn đến trang đăng nhập nhé!",
@@ -72,6 +84,7 @@ async function chatbotReply(req, res) {
         error: "Message không được để trống",
       });
     }
+
     const height = extractHeightFromMessage(message);
     const weight = extractWeightFromMessage(message);
     if (height && weight) {
@@ -88,6 +101,7 @@ async function chatbotReply(req, res) {
     if (money) {
       return recommendSetByIntentAndBudget(req, res, intent, money);
     }
+
     switch (intent) {
       // Intent Default
       case "what_can_you_do":
@@ -97,6 +111,7 @@ async function chatbotReply(req, res) {
       case "shop_info":
       case "goodbye":
       case "thanks":
+      case "shop_style":
         return handleDefaultIntent(req, res, intent);
 
       // Intent Data
@@ -122,11 +137,15 @@ async function chatbotReply(req, res) {
       case "redirect_to_invoices":
       case "redirect_to_favorites":
       case "redirect_to_profile":
+      case "redirect_to_change_password":
+      case "redirect_to_notification":
+      case "redirect_to_address":
         return handleRedirectIntent(req, res, intent, userId);
 
       default:
         res.json({
-          reply: "Xin lỗi, tôi không hiểu câu hỏi",
+          reply:
+            "Xin lỗi, tôi không hiểu câu hỏi, vui lòng gửi lại câu hỏi khác!",
         });
     }
   } catch (error) {
@@ -155,6 +174,7 @@ async function handleSuggestSize(height, weight, res) {
     : "Mình chưa thể xác định được size phù hợp, bạn vui lòng kiểm tra lại thông tin.";
   return res.json({ reply, height, weight, size });
 }
+
 // Xử lí tư vấn phong cách khi có tiền
 const recommendSetByIntentAndBudget = async (req, res, intent, money) => {
   try {
@@ -339,6 +359,7 @@ function extractHeightFromMessage(message) {
   }
   return null;
 }
+
 // ----------- Hàm regex Money ------------
 function extractMoneyFromMessage(message) {
   if (!message) return null;

@@ -87,7 +87,20 @@ function addDocuments() {
     "chatbot tên gì?",
     "bạn tên gì vậy?",
   ].forEach((text) => manager.addDocument("vi", text, "bot_name"));
-
+  [
+    "shop theo phong cách gì?",
+    "phong cách thời trang của shop là gì?",
+    "shop bán đồ theo style nào?",
+    "phong cách của shop như thế nào?",
+    "shop phù hợp với phong cách nào?",
+    "đồ ở shop hợp với style gì?",
+    "shop bán theo xu hướng nào?",
+    "shop có theo phong cách streetwear không?",
+    "shop có bán đồ basic không?",
+    "shop có style trẻ trung không?",
+    "shop hướng đến phong cách nào?",
+    "shop có nhiều style khác nhau không?",
+  ].forEach((text) => manager.addDocument("vi", text, "shop_style"));
   // Redirect to products page
   [
     "hãy chuyển tôi đến trang sản phẩm",
@@ -149,6 +162,37 @@ function addDocuments() {
     "đăng nhập giùm mình",
     "tôi cần đăng nhập để mua hàng",
   ].forEach((text) => manager.addDocument("vi", text, "redirect_to_login"));
+
+  // Redirect to notifications page
+  [
+    "hãy chuyển tôi đến trang thông báo",
+    "đưa tôi đến trang thông báo",
+    "mở trang thông báo",
+    "tôi muốn xem thông báo",
+    "tôi muốn vào trang thông báo",
+  ].forEach((text) =>
+    manager.addDocument("vi", text, "redirect_to_notifications")
+  );
+
+  // Redirect to change password page
+  [
+    "hãy chuyển tôi đến trang đổi mật khẩu",
+    "đưa tôi đến trang đổi mật khẩu",
+    "mở trang đổi mật khẩu",
+    "tôi muốn đổi mật khẩu",
+    "tôi muốn thay đổi mật khẩu",
+  ].forEach((text) =>
+    manager.addDocument("vi", text, "redirect_to_change_password")
+  );
+
+  // Redirect to address page
+  [
+    "hãy chuyển tôi đến trang địa chỉ",
+    "đưa tôi đến trang địa chỉ",
+    "mở trang địa chỉ",
+    "tôi muốn xem địa chỉ",
+    "tôi muốn quản lý địa chỉ",
+  ].forEach((text) => manager.addDocument("vi", text, "redirect_to_address"));
 }
 
 // Thêm các câu mẫu về phong cách (style)

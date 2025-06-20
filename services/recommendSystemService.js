@@ -6,11 +6,11 @@ const searchHistoryService = require("./searchHistoryService");
 const keywordsToCategory = {
   "T-Shirt": ["áo", "áo thun"],
   Shirt: ["áo", "áo sơ mi"],
-  Pants: ["quần", "quần jean", "quần short"],
+  Pants: ["quần", "quần dài"],
   Hat: ["nón", "mũ"],
-  Short: ["'quần", "quần ngắn", "quần short"],
-  Accessories: ["phụ kiện", "balo", "túi"],
-  Jacket: ["áo khoác"],
+  Short: ["'quần", "quần ngắn", "quần short", "quần jean ngắn"],
+  Accessories: ["phụ kiện", "vòng tay", "vòng cổ"],
+  Jacket: ["áo khoác", "áo khoác da"],
 };
 
 // Mapping từ khóa trending thành các category
@@ -36,7 +36,6 @@ const mapTrendingToCategory = (keywords) => {
 const getRecentSearches = async (userId) => {
   return await searchHistoryService.getRecentSearches(userId);
 };
-(" ");
 
 // 🔹 Collaborative Filtering: Dựa trên người dùng có hành vi tương tự
 const getCollaborativeRecommendations = async (userId) => {
@@ -142,9 +141,9 @@ const getHybridRecommendations = async (userId) => {
     });
   };
 
+  addToRecommendations(contentBased.slice(0, 5), 3); // Ưu tiên cao nhất
+  addToRecommendations(collaborative.slice(0, 5), 2);
   addToRecommendations(personalized, 1);
-  addToRecommendations(collaborative, 3);
-  addToRecommendations(contentBased, 2);
 
   // ✅ Gộp thêm các sản phẩm chưa có trong gợi ý, set priority = 0
   allProducts.forEach((product) => {
