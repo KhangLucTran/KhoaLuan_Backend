@@ -40,4 +40,10 @@ router.get("/google", authControler.googleLogin);
 // 11. Callback khi đăng nhập thành công qua Google
 router.get("/google/callback", authControler.googleCallback);
 
+// 12. Định tuyến đăng nhập qua Facebook
+router.get("/facebook", authControler.facebookLogin);
+
+// 13. Callback khi đăng nhập thành công qua Google
+router.get("/facebook/callback", authControler.facebookCallback);
+
 module.exports = router;

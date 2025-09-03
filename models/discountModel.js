@@ -12,6 +12,12 @@ const discountSchema = new Schema(
       trim: true,
     },
 
+    // Mảng chứa USERID đã sử dụng discount
+    usedBy: {
+      type: [String],
+      default: [],
+    },
+
     // Giảm theo phần trăm (VD: 10%, 20%)
     percent: {
       type: Number,
@@ -30,7 +36,15 @@ const discountSchema = new Schema(
     // Áp dụng cho sản phẩm cụ thể (Quần, Áo, Nón)
     applicableProducts: {
       type: [String],
-      enum: ["Shirt", "Pants", "Hat"],
+      enum: [
+        "Shirt",
+        "Pants",
+        "Hat",
+        "Jacket",
+        "Accessories",
+        "T-Shirt",
+        "Short",
+      ],
       default: [],
     },
 

@@ -58,7 +58,15 @@ const productSchema = new Schema(
     category: {
       type: String,
       required: true,
-      enum: ["Shirt", "Pants", "Hat"], // Đảm bảo chỉ có thể là các giá trị này
+      enum: [
+        "Shirt",
+        "Pants",
+        "Hat",
+        "Jacket",
+        "Accessories",
+        "T-Shirt",
+        "Short",
+      ], // Đảm bảo chỉ có thể là các giá trị này
     },
 
     // Giới tính

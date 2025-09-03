@@ -94,10 +94,33 @@ const deleteDiscount = async (req, res) => {
   }
 };
 
+// 6. Hàm áp dụng Discount của user
+const applyDiscount = async (req, res) => {
+  const discountId = req.body;
+  const userId = req.user._id; // Lấy userId từ token đã xác thực
+  const result = await DiscountService.applyDiscountForUser(discountId, userId);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  return res.status(200).json(result);
+};
+
+const getDiscountsByUser = async (req, res) => {
+  const userId = req.user._id;
+
+  const result = await DiscountService.getDiscountsByUserId(userId);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  return res.status(200).json(result);
+};
 module.exports = {
   createDiscount,
   getAllDiscounts,
   getDiscountById,
   updateDiscount,
   deleteDiscount,
+  applyDiscount,
+  getDiscountsByUser,
 };

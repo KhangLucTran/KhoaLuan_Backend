@@ -2,44 +2,45 @@
 const cloudinary = require("cloudinary").v2;
 const Product = require("../models/productModel");
 const NotificationService = require("../services/notificationService");
+const cloudinaryService = require("../middleware/cloudinary");
 
-// Hàm upload ảnh lên Cloudinary
 const uploadImageToCloudinary = async (file) => {
   try {
     const result = await cloudinary.uploader.upload(file.path, {
-      folder: "products", // Lưu ảnh trong thư mục 'produucts'
-      use_filename: true, // Sử dụng tên file gốc
-      unique_filename: false, // Không thêm chuỗi ngẫu nhiên vào tên file
+      folder: "products",
+      use_filename: true, // Dùng tên file gốc
+      unique_filename: false, // Không thêm chuỗi ngẫu nhiên
     });
-    return result.secure_url; // Trả về URL của ảnh
+
+    return {
+      url: result.secure_url, // URL ảnh
+      publicId: result.public_id, // public_id chính xác
+    };
   } catch (error) {
     throw new Error("Lỗi khi upload ảnh lên Cloudinary: " + error.message);
   }
 };
 
-// Thêm sản phẩm mới với nhiều ảnh
 const addProduct = async (productData, files) => {
   try {
     if (files && files.length > 0) {
-      // Lấy danh sách URL ảnh từ Cloudinary
-      const imageUrls = [];
-      for (const file of files) {
-        const imageUrl = await uploadImageToCloudinary(file); // Upload ảnh lên Cloudinary
-        imageUrls.push(imageUrl); // Thêm URL ảnh vào mảng
-      }
-      productData.images = imageUrls; // Gán mảng ảnh cho sản phẩm
+      // ✅ Upload ảnh song song để tối ưu tốc độ
+      const imageUrls = await Promise.all(files.map(uploadImageToCloudinary));
+      productData.images = imageUrls; // Lưu danh sách ảnh (URL + publicId)
     }
 
     const newProduct = new Product(productData); // Tạo mới sản phẩm
     await newProduct.save(); // Lưu vào DB
 
-    // ✅ Gửi thông báo sau khi thêm sản phẩm thành công
-    await NotificationService.sendGenericNotification(
-      null, // Không chỉ định user cụ thể
-      `🆕 Levents đã thêm một sản phẩm mới: ${newProduct.title}!`, // Nội dung thông báo
-      "product", // Loại thông báo
-      { productId: newProduct._id } // Dữ liệu bổ sung
-    );
+    // ✅ Gửi thông báo khi sản phẩm mới được thêm cho tất cả người dùng
+    await NotificationService.createNotification({
+      user: null,
+      title: "Sản phẩm mới",
+      message: `Quản trị viên Levents đã thêm sản phẩm ${newProduct.title}`,
+      isGlobal: true,
+      type: "product",
+      productId: newProduct._id,
+    });
 
     return newProduct; // Trả về sản phẩm vừa thêm
   } catch (error) {
@@ -72,37 +73,55 @@ const deleteProductByTitle = async (title) => {
   }
 };
 
-// Lấy sản phẩm theo ID
+// Hàm lấy sản phẩm theo id
 const getProductById = async (id) => {
   try {
     const product = await Product.findById(id);
     if (!product) {
       throw new Error("Product not found");
     }
-    return product;
+
+    return { product };
   } catch (error) {
     throw new Error("Error fetching product by ID: " + error.message);
   }
 };
 
 // Chỉnh sửa sản phẩm theo ID
-const updateProductById = async (id, productData, file) => {
+const updateProductById = async (id, productData, files) => {
   try {
     const product = await Product.findById(id);
     if (!product) {
-      throw new Error("Product not found");
+      throw new Error("Sản phẩm không tồn tại");
+    }
+    // 🔥 1. Xóa ảnh cũ nếu người dùng yêu cầu
+    const deletedImages = Array.isArray(productData.deletedImages)
+      ? productData.deletedImages
+      : [];
+
+    if (deletedImages.length > 0) {
+      for (const imageUrl of deletedImages) {
+        await cloudinaryService.deleteImageFromCloudinary(imageUrl);
+        product.images = product.images.filter((img) => img !== imageUrl);
+      }
     }
 
-    if (file) {
-      const imageUrl = await uploadImageToCloudinary(file);
-      productData.images = [imageUrl]; // Cập nhật ảnh sản phẩm
+    // 🔥 2. Upload ảnh mới nếu có
+    let uploadedImages = [];
+    if (files && Array.isArray(files)) {
+      for (const file of files) {
+        const imageUrl = await uploadImageToCloudinary(file);
+        uploadedImages.push(imageUrl);
+      }
     }
 
+    // 🔥 3. Cập nhật danh sách ảnh mới
+    product.images = [...product.images, ...uploadedImages];
     Object.assign(product, productData); // Cập nhật thông tin sản phẩm
     await product.save();
     return product;
   } catch (error) {
-    throw new Error("Error updating product: " + error.message);
+    throw new Error("Lỗi trong quá trình chỉnh sửa sản phẩm: " + error.message);
   }
 };
 
@@ -139,12 +158,22 @@ const updateStockProduct = async (lineItems) => {
 };
 
 // Xóa sản phẩm theo ID
-const deleteProductById = async (id) => {
+const deleteProductById = async (id, userId) => {
   try {
     const product = await Product.findByIdAndDelete(id);
     if (!product) {
       throw new Error("Product not found");
     }
+    // Gửi thông báo người dùng chỉnh sửa dữ liệu thành công
+    await NotificationService.createNotification({
+      user: userId,
+      title: "Sản phẩm đã bị xóa",
+      message: `Quản trị viên đã xóa sản phẩm ${product.title}`,
+      isGlobal: true,
+      type: "product",
+      productId: product._id,
+    });
+
     return product;
   } catch (error) {
     throw new Error("Error deleting product: " + error.message);
@@ -164,6 +193,138 @@ const getProductByCategory = async (category) => {
   }
 };
 
+const recommendByCategories = async (
+  categories,
+  limit = 6,
+  additionalLimit
+) => {
+  // Lấy 1 món mới nhất mỗi category
+  const onePerCategory = await Product.aggregate([
+    { $match: { category: { $in: categories } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: "$category",
+        product: { $first: "$$ROOT" },
+      },
+    },
+    { $replaceRoot: { newRoot: "$product" } },
+  ]);
+
+  const idsTaken = onePerCategory.map((p) => p._id);
+
+  // Nếu không truyền additionalLimit thì lấy đủ số còn lại để đủ limit
+  const addLimit = additionalLimit ?? limit - onePerCategory.length;
+
+  // Lấy thêm sản phẩm khác (không trùng), limit phù hợp
+  const additionalProducts = await Product.find({
+    category: { $in: categories },
+    _id: { $nin: idsTaken },
+  })
+    .sort({ createdAt: -1 })
+    .limit(addLimit)
+    .exec();
+
+  return [...onePerCategory, ...additionalProducts];
+};
+
+const recommendLichLam = () =>
+  recommendByCategories(["Shirt", "Pants", "Jacket"]);
+const recommendThoaiMai = () =>
+  recommendByCategories(["T-Shirt", "Short", "Accessories"]);
+const recommendNangDong = () =>
+  recommendByCategories(["T-Shirt", "Jacket", "Short"]);
+const recommendStreetStyle = () =>
+  recommendByCategories(["Hat", "Jacket", "T-Shirt", "Accessories"], 6, 2);
+const recommendToiGian = () => recommendByCategories(["T-Shirt", "Pants"]);
+const recommendCongSo = () =>
+  recommendByCategories(["Shirt", "Pants", "Accessories"]);
+const recommendHienDai = () =>
+  recommendByCategories(["Accessories", "Hat", "Jacket", "T-Shirt"]);
+
+const intentToCategories = {
+  recommendLichLam: ["Shirt", "Pants", "Jacket", "Accessories"], // Shirt + Pants => OK
+  recommendThoaiMai: ["T-Shirt", "Short", "Accessories"], // T-Shirt + Short => OK
+  recommendNangDong: ["T-Shirt", "Short", "Jacket", "Accessories"], // T-Shirt + Short => OK
+  recommendStreetStyle: ["T-Shirt", "Short", "Jacket", "Accessories"], // T-Shirt + Short => OK
+  recommendToiGian: ["T-Shirt", "Pants", "Accessories"], // T-Shirt + Pants => OK
+  recommendCongSo: ["Shirt", "Pants", "Accessories"], // Shirt + Pants => OK
+  recommendHienDai: ["T-Shirt", "Short", "Jacket", "Accessories", "Hat"], // T-Shirt + Short => OK
+};
+
+const recommendSetByBudget = async (intent, budget) => {
+  const categories = intentToCategories[intent];
+  if (!categories || !Array.isArray(categories)) {
+    return []; // Nếu intent không hợp lệ hoặc chưa định nghĩa
+  }
+
+  const pantsCategories = ["Pants", "Short"];
+  const shirtCategories = ["Shirt", "T-Shirt"];
+  const accessoryCategories = ["Accessories"];
+  const jacketCategories = ["Jacket"];
+  const hatCategories = ["Hat"];
+
+  const products = await Product.find({ category: { $in: categories } })
+    .sort({ createdAt: -1 })
+    .exec();
+  console.log("Sản phẩm", products);
+
+  const pants = products.filter((p) => pantsCategories.includes(p.category));
+  const shirts = products.filter((p) => shirtCategories.includes(p.category));
+  const accessories = products.filter((p) =>
+    accessoryCategories.includes(p.category)
+  );
+  const jackets = products.filter((p) => jacketCategories.includes(p.category));
+  const hats = products.filter((p) => hatCategories.includes(p.category));
+
+  // Nếu không có áo hoặc không có quần thì không thể gợi ý
+  if (pants.length === 0 || shirts.length === 0) return [];
+
+  let bestPair = null;
+  let bestPairPrice = 0;
+
+  for (const pant of pants) {
+    for (const shirt of shirts) {
+      const total = pant.price + shirt.price;
+      if (total <= budget && total > bestPairPrice) {
+        bestPair = [pant, shirt];
+        bestPairPrice = total;
+      }
+    }
+  }
+
+  // Nếu không tìm được cặp áo + quần nào trong ngân sách thì return []
+  if (!bestPair) return [];
+
+  let remainingBudget = budget - bestPairPrice;
+  const additionalItems = [];
+
+  const pickItem = (items) => {
+    const affordable = items.filter(
+      (item) =>
+        item.price <= remainingBudget &&
+        !additionalItems.includes(item) &&
+        !bestPair.includes(item)
+    );
+    if (affordable.length === 0) return null;
+    affordable.sort((a, b) => b.price - a.price);
+    return affordable[0];
+  };
+
+  const groups = [accessories, jackets, hats];
+
+  for (const group of groups) {
+    let item = pickItem(group);
+    while (item && remainingBudget >= item.price) {
+      additionalItems.push(item);
+      remainingBudget -= item.price;
+      item = pickItem(group);
+    }
+  }
+
+  return [...bestPair, ...additionalItems];
+};
+
 module.exports = {
   addProduct,
   getAllProducts,
@@ -173,4 +334,12 @@ module.exports = {
   deleteProductByTitle,
   updateStockProduct,
   getProductByCategory,
+  recommendNangDong,
+  recommendLichLam,
+  recommendThoaiMai,
+  recommendStreetStyle,
+  recommendHienDai,
+  recommendCongSo,
+  recommendToiGian,
+  recommendSetByBudget,
 };

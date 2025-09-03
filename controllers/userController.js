@@ -4,6 +4,7 @@ const {
   deleteUserById,
   createUserByAdmin,
   getUserByIdNo_Code,
+  updateUserByAdmin,
 } = require("../services/userService");
 
 /**
@@ -22,7 +23,7 @@ const getLoggedInUser = async (req, res) => {
   }
 };
 
-// Controller cho "chỉnh sửa thông tin người dùng đang đdăng nhập"
+// Controller cho "chỉnh sửa thông tin người dùng đang dăng nhập"
 const updateInforUser = async (req, res) => {
   try {
     const updateData = req.body; // Lấy thông tin mới từ body
@@ -41,15 +42,36 @@ const updateInforUser = async (req, res) => {
   }
 };
 
+// Contrtoller Chỉnh sửa thông tin người dùng của Admin
+const updateInforUserAdmin = async (req, res) => {
+  try {
+    const { userId, updateData } = req.body;
+    console.log({ userId, updateData });
+    // Gọi hàm từ service để cập nhật thông tin người dùng
+    const updatedUser = await updateUserByAdmin(userId, updateData);
+
+    res.status(200).json({
+      error: 0,
+      message: "User information updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update User Error:", error);
+    res.status(500).json({ error: 1, message: error.message });
+  }
+};
+
 // Controller cho "lấy tất cả người dùng"
 const getAllUsers = async (req, res) => {
   try {
     const users = await getAllUsersByAdmin();
-    res
-      .status(200)
-      .json({ error: 0, message: "Get All Users successfully", data: users });
+    res.status(200).json({
+      error: 0,
+      message: "Get All Users successfully",
+      data: users,
+    });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Lỗi khi lấy danh sách users:", error);
     res.status(500).json({ error: 1, message: "Error retrieving users" });
   }
 };
@@ -107,4 +129,5 @@ module.exports = {
   removeUser,
   createUser,
   getUserById,
+  updateInforUserAdmin,
 };

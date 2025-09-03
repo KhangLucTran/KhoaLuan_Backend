@@ -5,6 +5,7 @@ const authenticateToken = require("../middleware/authMiddleware");
 
 // Route thêm sản phẩm yêu thích
 router.post("/", authenticateToken, favoriteController.addFavoriteController);
+
 // Route lấy tất cả sản phẩm yêu thích
 router.get(
   "/",

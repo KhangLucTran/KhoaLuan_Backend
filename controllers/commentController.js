@@ -38,7 +38,6 @@ const addCommentController = async (req, res) => {
 // Hàm lấy tất cả comment
 const getCommentsByProductController = async (req, res) => {
   const { productId } = req.params;
-
   try {
     const comments = await commentService.getCommentsByProduct(productId);
     res.status(200).json({

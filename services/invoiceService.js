@@ -18,7 +18,44 @@ const getInvoiceById = async (invoiceId) => {
 };
 // Hàm update trạng thái Invoice
 const updateInvoiceStatus = async (id, status) => {
-  return await Invoice.findByIdAndUpdate(id, { status }, { new: true });
+  const updatedInvoice = await Invoice.findByIdAndUpdate(
+    id,
+    {
+      status,
+      $push: {
+        statusTimeLine: {
+          status,
+          updatedAt: new Date(),
+        },
+      },
+    },
+    { new: true }
+  );
+
+  return updatedInvoice;
+};
+// Hàm update  Invoice
+const updateHasRated = async (invoiceId, productId) => {
+  try {
+    const invoice = await Invoice.findById(invoiceId);
+    if (!invoice) {
+      throw new Error("Không tìm thấy hóa đơn.");
+    }
+
+    const item = invoice.lineItems.find(
+      (item) => item.productId.toString() === productId.toString()
+    );
+    if (!item) {
+      throw new Error("Không tìm thấy sản phẩm trong hóa đơn.");
+    }
+    // Cập nhật hasRated
+    item.hasRated = true;
+    await invoice.save();
+    return invoice;
+  } catch (error) {
+    console.error("Lỗi khi cập nhật hasRated:", error);
+    throw error;
+  }
 };
 
 // Hàm xác nhận hóa đơn (admin xác nhận, khi hóa đơn có trạng thái "Pending" thì sẽ cập nhật thành "Completed")
@@ -38,13 +75,14 @@ const confirmInvoice = async (objectId) => {
 
 // Hàm lấy tất cả invoices
 const getAllInvoices = async () => {
-  return await Invoice.find();
+  return await Invoice.find().populate("user", "profileId email");
 };
 
 // Hàm tìm Invoice theo userId và productId
 const findInvoiceByUserAndProduct = async (userId, productId) => {
-  return await Invoice.findOne({
+  return await Invoice.find({
     user: userId, // Kiểm tra userId
+    status: "Completed",
     productIds: { $in: [productId] }, // Kiểm tra nếu productId nằm trong mảng productIds
   });
 };
@@ -57,4 +95,5 @@ module.exports = {
   getAllInvoices,
   findInvoiceByUserAndProduct,
   getInvoiceById,
+  updateHasRated,
 };

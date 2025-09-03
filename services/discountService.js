@@ -80,6 +80,64 @@ const deleteDiscount = async (id) => {
     throw new Error("Lỗi hệ thống khi xóa mã giảm giá");
   }
 };
+const applyDiscountForUser = async (discountId, userId) => {
+  try {
+    const discount = await Discount.findById(discountId);
+
+    if (!discount) {
+      return { success: false, message: "Mã giảm giá không tồn tại" };
+    }
+
+    // Thêm userId vào usedBy (nếu chưa có)
+    if (!discount.usedBy.includes(userId)) {
+      discount.usedBy.push(userId);
+    }
+
+    await discount.save();
+
+    return {
+      success: true,
+      message: "Thêm người dùng vào mã giảm giá thành công",
+      data: discount,
+    };
+  } catch (error) {
+    console.error("Lỗi khi thêm người dùng vào mã giảm giá:", error);
+    return { success: false, message: "Lỗi hệ thống khi xử lý mã giảm giá" };
+  }
+};
+
+const getDiscountsByUserId = async (userId) => {
+  try {
+    if (!userId) {
+      return { success: false, message: "Thiếu userId" };
+    }
+
+    const allDiscounts = await Discount.find();
+
+    const usedDiscounts = [];
+    const unusedDiscounts = [];
+
+    allDiscounts.forEach((discount) => {
+      if (discount.usedBy.includes(userId)) {
+        usedDiscounts.push(discount);
+      } else {
+        unusedDiscounts.push(discount);
+      }
+    });
+
+    return {
+      success: true,
+      used: usedDiscounts,
+      unused: unusedDiscounts,
+    };
+  } catch (error) {
+    console.error("Lỗi khi phân loại discount theo userId:", error);
+    return {
+      success: false,
+      message: "Lỗi hệ thống khi phân loại mã giảm giá",
+    };
+  }
+};
 
 module.exports = {
   createDiscount,
@@ -87,4 +145,6 @@ module.exports = {
   getDiscountById,
   updateDiscount,
   deleteDiscount,
+  applyDiscountForUser,
+  getDiscountsByUserId,
 };

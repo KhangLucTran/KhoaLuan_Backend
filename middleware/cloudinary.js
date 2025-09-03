@@ -15,7 +15,7 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: "avatars",
-    allowedFormats: ["jpg", "jpeg", "png", "gif", "webp"],
+    allowedFormats: ["jpg", "jpeg", "png", "gif", "webp", "avif"],
     transformation: [{ width: 500, height: 500, crop: "limit" }],
     public_id: (req, file) => Date.now().toString(), // Tránh trùng tên
   },
@@ -29,14 +29,16 @@ const deleteImageFromCloudinary = async (imageUrl) => {
     if (!imageUrl) return;
 
     const urlParts = imageUrl.split("/");
-    const fileNameWithExtension = urlParts.pop();
-    const folderName = urlParts.pop();
-    const fileName = fileNameWithExtension.split(".")[0];
+    const fileNameWithExtension = decodeURIComponent(urlParts.pop()); // Giải mã URL
+    const folderName = decodeURIComponent(urlParts.pop());
+    const fileName = fileNameWithExtension.split(".")[0]; // "img2"
 
     const publicId = `${folderName}/${fileName}`;
+    console.log("🛠 Public ID để xóa:", publicId);
+
     await cloudinary.uploader.destroy(publicId);
   } catch (error) {
-    console.error("Error deleting image from Cloudinary:", error.message);
+    console.error("❌ Lỗi khi xóa ảnh từ Cloudinary:", error.message);
   }
 };
 
